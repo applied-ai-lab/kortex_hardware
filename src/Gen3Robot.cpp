@@ -14,6 +14,7 @@
 
 #include "kortex_hardware/ModeService.h"
 #include "pinocchio/parsers/urdf.hpp"
+#include <std_msgs/UInt64MultiArray.h>
 
 using namespace std;
 
@@ -59,7 +60,56 @@ void Gen3Robot::addGravityCompensation(
     }
   }
 
-  gravity_ = pinocchio::computeGeneralizedGravity(model, data, q_);
+  // Defensive: wrap the Pinocchio call AND scan the output for
+  // non-finite entries.  Two failure modes are folded together:
+  //
+  //   1. Throw — `computeGeneralizedGravity` raises (std::exception,
+  //      Eigen runtime_error, etc.) when `q_` is dimensionally wrong
+  //      or contains non-finite values that trip an internal assert.
+  //      Catch, log throttled, zero gravity for this cycle.
+  //
+  //   2. Non-finite output — `cos(NaN)` / `sin(NaN)` from a bad
+  //      `config[i]` propagates through RNEA without throwing.
+  //      Scan the result; non-finite entries are zeroed individually
+  //      so the rest of the gravity vector still applies.
+  //
+  // Either failure increments `m_nan_gravity_count` so the
+  // diagnostics topic surfaces it.  Combined with the boundary
+  // guard at `set_torque_joint`, no non-finite value can reach the
+  // wire regardless of upstream state.
+  try
+  {
+    gravity_ = pinocchio::computeGeneralizedGravity(model, data, q_);
+  }
+  catch (const std::exception& ex)
+  {
+    m_nan_gravity_count.fetch_add(1, std::memory_order_relaxed);
+    ROS_ERROR_THROTTLE(
+        1.0,
+        "[kortex_hardware] Pinocchio computeGeneralizedGravity threw: %s "
+        "— zeroing gravity for this cycle",
+        ex.what());
+    gravity_.setZero();
+  }
+
+  bool any_nan = false;
+  for (int i = 0; i < model.nv; i++)
+  {
+    if (!std::isfinite(gravity_[i]))
+    {
+      gravity_[i] = 0.0;
+      any_nan = true;
+    }
+  }
+  if (any_nan)
+  {
+    m_nan_gravity_count.fetch_add(1, std::memory_order_relaxed);
+    ROS_WARN_THROTTLE(
+        1.0,
+        "[kortex_hardware] gravity comp produced non-finite output — "
+        "zeroed affected joints");
+  }
+
   // add gravity compensation torque to base command
   for (int i = 0; i < model.nv; i++)
   {
@@ -249,9 +299,12 @@ Gen3Robot::Gen3Robot(ros::NodeHandle nh)
   gripper_mode = hardware_interface::JointCommandModes::MODE_POSITION;
   last_arm_mode = hardware_interface::JointCommandModes::BEGIN;
 
-  // Initialize the low pass filter
-  in_lpf = new LowPassFilter(1000, 30, num_full_dof);
-  out_lpf = new LowPassFilter(1000, 100, num_full_dof);
+  // Initialize the low pass filter.  Counter pointers feed the
+  // diagnostics pipeline — if either LPF's sticky-NaN trap-break
+  // fires, the corresponding counter increments and the failure
+  // becomes a transient instead of "limp until restart".
+  in_lpf  = new LowPassFilter(1000, 30,  num_full_dof, &m_nan_lpf_in_count);
+  out_lpf = new LowPassFilter(1000, 100, num_full_dof, &m_nan_lpf_out_count);
 
   // Initialize current control parameters
   if (num_arm_dof == 6)
@@ -347,6 +400,34 @@ Gen3Robot::Gen3Robot(ros::NodeHandle nh)
                                     &Gen3Robot::stopCallback, this);
   ROS_INFO("[kortex_hardware] soft-stop subscribers attached on "
            "in/{emergency_stop,clear_faults,stop}");
+
+  // ---- Layer 1 NaN diagnostics --------------------------------------
+  // 1 Hz publisher of the counter array.  Subscribers can drive
+  // rqt_plot / rosbag without per-cycle overhead in the control loop.
+  // Counter atomics are read-only here; no lock needed.
+  m_diag_pub = nh.advertise<std_msgs::UInt64MultiArray>(
+      "diagnostics/nan_counts", 10);
+  m_diag_timer = nh.createTimer(
+      ros::Duration(1.0), &Gen3Robot::diagnosticsTimerCallback, this);
+  ROS_INFO("[kortex_hardware] NaN diagnostics publisher attached on "
+           "~diagnostics/nan_counts (1 Hz)");
+}
+
+void Gen3Robot::diagnosticsTimerCallback(const ros::TimerEvent&)
+{
+  // Snapshot the atomics.  Layout: [cmd, lpf_in, lpf_out, gravity, last_joint].
+  // Matches the order used in docs/diagnosis_report.md.
+  std_msgs::UInt64MultiArray msg;
+  msg.data.resize(5);
+  msg.data[0] = m_nan_cmd_count.load(std::memory_order_relaxed);
+  msg.data[1] = m_nan_lpf_in_count.load(std::memory_order_relaxed);
+  msg.data[2] = m_nan_lpf_out_count.load(std::memory_order_relaxed);
+  msg.data[3] = m_nan_gravity_count.load(std::memory_order_relaxed);
+  // last_joint is signed; cast to unsigned for transport — -1 (no
+  // hit yet) becomes UINT64_MAX on the wire, easy to spot.
+  int last = m_nan_last_joint.load(std::memory_order_relaxed);
+  msg.data[4] = static_cast<std::uint64_t>(last);
+  m_diag_pub.publish(msg);
 }
 
 void Gen3Robot::estopCallback(const std_msgs::Empty::ConstPtr&)
@@ -834,8 +915,31 @@ void Gen3Robot::sendTorqueCommand(std::vector<double>& command)
   int rate = now - last;
   try
   {
+    // Layer 1 boundary guard.  A non-finite torque command makes it
+    // onto the wire as a NaN/Inf float; the Kortex firmware silently
+    // rejects that actuator's command (no exception, no fault) and
+    // the arm goes limp.  Detect at the very last opportunity,
+    // substitute zero, and count the event for diagnostics.  Zero is
+    // a deliberate choice: it loses gravity comp for one cycle but
+    // prevents the silent-limp failure mode and (importantly) keeps
+    // the firmware path clean.  See docs/diagnosis_report.md.
     for (unsigned int idx = 0; idx < mActuatorCount; idx++)
-      mBaseCommand.mutable_actuators(idx)->set_torque_joint(command.at(idx));
+    {
+      double t = command.at(idx);
+      if (!std::isfinite(t))
+      {
+        m_nan_cmd_count.fetch_add(1, std::memory_order_relaxed);
+        m_nan_last_joint.store(static_cast<int>(idx),
+                               std::memory_order_relaxed);
+        ROS_WARN_THROTTLE(
+            1.0,
+            "[kortex_hardware] non-finite torque command on joint %u "
+            "(was %f) — substituting 0.0",
+            idx, t);
+        t = 0.0;
+      }
+      mBaseCommand.mutable_actuators(idx)->set_torque_joint(t);
+    }
 
     // Incrementing identifier ensures actuators can reject out of time frames
     mBaseCommand.set_frame_id(mBaseCommand.frame_id() + 1);
@@ -916,7 +1020,25 @@ void Gen3Robot::sendCurrentCommand(std::vector<double>& command)
       //        position
       mBaseCommand.mutable_actuators(i)->set_position(
           mLastFeedback.actuators(i).position());
-      mBaseCommand.mutable_actuators(i)->set_current_motor(command.at(i));
+      // Layer 1 boundary guard — same rationale as sendTorqueCommand.
+      // Current-mode is doubly exposed because `out_lpf` (applied
+      // earlier in this function) can latch sticky NaN; the LPF's
+      // internal trap-break + this final isfinite check together
+      // mean we cannot ship a non-finite current to the wire.
+      double c = command.at(i);
+      if (!std::isfinite(c))
+      {
+        m_nan_cmd_count.fetch_add(1, std::memory_order_relaxed);
+        m_nan_last_joint.store(static_cast<int>(i),
+                               std::memory_order_relaxed);
+        ROS_WARN_THROTTLE(
+            1.0,
+            "[kortex_hardware] non-finite current command on joint %u "
+            "(was %f) — substituting 0.0",
+            i, c);
+        c = 0.0;
+      }
+      mBaseCommand.mutable_actuators(i)->set_current_motor(c);
     }
 
     // Incrementing identifier ensures actuators can reject out of time frames
