@@ -266,11 +266,31 @@ Gen3Robot::Gen3Robot(ros::NodeHandle nh)
     gear_ratio = {11.0, 11.0, 11.0, 11.0, 7.6, 7.6, 7.6};
   }
 
-  // pinnochio initialization
-  pinocchio::urdf::buildModel(mURDFFile, model);
+  // ---- Pinocchio initialization (gravity-compensation model) ----
+  // buildModel throws std::invalid_argument / std::runtime_error if
+  // the URDF path is empty, unreadable, or malformed.  Bare throw
+  // here would propagate out of the constructor, out of main(), and
+  // terminate the process via std::terminate — with a backtrace that
+  // rarely names Pinocchio.  Catch it, log a useful diagnostic
+  // identifying the bad path and parser message, then rethrow so the
+  // top-level main() catch can shut down cleanly.
+  try
+  {
+    pinocchio::urdf::buildModel(mURDFFile, model);
+  }
+  catch (const std::exception& ex)
+  {
+    ROS_FATAL(
+        "[kortex_hardware] Pinocchio failed to parse URDF at '%s': %s. "
+        "Check the ~urdf_file rosparam (currently '%s'); the path must "
+        "exist, be readable by the container user, and contain a valid "
+        "URDF/XACRO-output document.",
+        mURDFFile.c_str(), ex.what(), mURDFFile.c_str());
+    throw;
+  }
   data = pinocchio::Data(model);
   q_ = pinocchio::neutral(model);
-  gravity_ = pinocchio::computeGeneralizedGravity(model, data, q_); 
+  gravity_ = pinocchio::computeGeneralizedGravity(model, data, q_);
 
 #ifdef KORTEX_HARDWARE__THREAD_PRIORITY
   std::ifstream realtime_file {"/sys/kernel/realtime", std::ios::in};
@@ -315,7 +335,124 @@ Gen3Robot::Gen3Robot(ros::NodeHandle nh)
   }
 #endif  // KORTEX_HARDWARE__THREAD_PRIORITY
 
+  // ---- Soft-stop bridge subscribers --------------------------------
+  // Relative names — resolve to /<arm_ns>/in/* via launch-file
+  // namespacing.  oxf20_soft_stop/launch/relays.launch bridges the
+  // global /in/* topics onto these.
+  m_estop_sub        = nh.subscribe("in/emergency_stop", 1,
+                                    &Gen3Robot::estopCallback, this);
+  m_clear_faults_sub = nh.subscribe("in/clear_faults", 1,
+                                    &Gen3Robot::clearFaultsCallback, this);
+  m_stop_sub         = nh.subscribe("in/stop", 1,
+                                    &Gen3Robot::stopCallback, this);
+  ROS_INFO("[kortex_hardware] soft-stop subscribers attached on "
+           "in/{emergency_stop,clear_faults,stop}");
+}
 
+void Gen3Robot::estopCallback(const std_msgs::Empty::ConstPtr&)
+{
+  // Latch BEFORE issuing the API call so the next write() in the
+  // main loop is skipped even if the RPC is briefly delayed.
+  m_estop_latched.store(true, std::memory_order_release);
+  ROS_WARN("[kortex_hardware] EMERGENCY STOP received");
+  try
+  {
+    // 0 = "stop all actuators".  The {false, 0, 100} options match
+    // the destructor's call (Gen3Robot.cpp:325) — no expected-reply,
+    // ID 0, 100 ms timeout.
+    mBase->ApplyEmergencyStop(0, {false, 0, 100});
+  }
+  catch (k_api::KDetailedException& ex)
+  {
+    ROS_ERROR("[kortex_hardware] ApplyEmergencyStop failed: %s", ex.what());
+    // Keep the latch on — better to be stopped-with-error than to
+    // resume writing cyclic frames to an arm we can't confirm faulted.
+  }
+}
+
+void Gen3Robot::clearFaultsCallback(const std_msgs::Empty::ConstPtr&)
+{
+  ROS_INFO("[kortex_hardware] CLEAR FAULTS received");
+  try
+  {
+    mBase->ClearFaults();
+
+    // ApplyEmergencyStop kicks the arm out of whatever servoing mode
+    // it was in.  Restore based on which mode the main loop was using:
+    //
+    //   * If LOW_LEVEL_SERVOING (effort/torque on the compliant stack)
+    //     was active, re-establish it AND re-apply each actuator's
+    //     TORQUE/CURRENT control mode.  Without the per-actuator step
+    //     the firmware silently demotes actuators to POSITION on fault,
+    //     so the next BaseCyclic frame is accepted but produces no
+    //     motion — the most confusing failure mode.
+    //   * Otherwise (SINGLE_LEVEL position/velocity), just restore the
+    //     single-level servoing mode and let the next one-shot RPC
+    //     re-engage.
+    //
+    // The per-actuator step is also gated on mActuatorCount > 0 because
+    // mActuatorCount has no in-class initializer and is only assigned
+    // inside switchToEffortMode().  If clearFaultsCallback runs before
+    // any effort mode was ever entered (e.g. spurious clear-faults at
+    // startup) the count is undefined; the guard keeps us out of UB.
+    if (mLowLevelServoing && mActuatorCount > 0)
+    {
+      mServoingMode.set_servoing_mode(
+          k_api::Base::ServoingMode::LOW_LEVEL_SERVOING);
+      mBase->SetServoingMode(mServoingMode);
+
+      // Restore per-actuator control mode.  current_control selects
+      // between TORQUE (default) and CURRENT, matching the convention
+      // in switchToEffortMode().
+      if (current_control)
+        mControlModeMessage.set_control_mode(
+            k_api::ActuatorConfig::ControlMode::CURRENT);
+      else
+        mControlModeMessage.set_control_mode(
+            k_api::ActuatorConfig::ControlMode::TORQUE);
+      for (unsigned int idx = 1; idx <= mActuatorCount; idx++)
+        mActuatorConfig->SetControlMode(mControlModeMessage, idx);
+
+      ROS_INFO("[kortex_hardware] restored LOW_LEVEL_SERVOING + %s "
+               "control on %u actuators",
+               current_control ? "CURRENT" : "TORQUE", mActuatorCount);
+    }
+    else
+    {
+      mServoingMode.set_servoing_mode(
+          k_api::Base::ServoingMode::SINGLE_LEVEL_SERVOING);
+      mBase->SetServoingMode(mServoingMode);
+      ROS_INFO("[kortex_hardware] restored SINGLE_LEVEL_SERVOING");
+    }
+  }
+  catch (k_api::KDetailedException& ex)
+  {
+    ROS_ERROR("[kortex_hardware] ClearFaults recovery failed: %s",
+              ex.what());
+    // Leave the latch on so we don't blindly resume cyclic writes
+    // against a still-faulted or partially-recovered arm.
+    return;
+  }
+  // Only release the latch once the full recovery sequence succeeds.
+  m_estop_latched.store(false, std::memory_order_release);
+  ROS_INFO("[kortex_hardware] faults cleared, control loop re-enabled");
+}
+
+void Gen3Robot::stopCallback(const std_msgs::Empty::ConstPtr&)
+{
+  // Soft stop — non-faulting decel.  Does NOT latch, because the
+  // arm is not in a fault state after Base::Stop and the firmware
+  // accepts cyclic commands again immediately.  If the operator
+  // wanted a hard stop they should hit the e-stop topic.
+  ROS_INFO("[kortex_hardware] SOFT STOP received");
+  try
+  {
+    mBase->Stop();
+  }
+  catch (k_api::KDetailedException& ex)
+  {
+    ROS_ERROR("[kortex_hardware] Base::Stop failed: %s", ex.what());
+  }
 }
 
 Gen3Robot::~Gen3Robot()

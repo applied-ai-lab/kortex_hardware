@@ -17,8 +17,12 @@
 #include <ros/console.h>
 #include <ros/package.h>
 #include <ros/ros.h>
+#include <std_msgs/Empty.h>
 
 #include "kortex_hardware/ModeService.h"
+
+// c++ (soft-stop)
+#include <atomic>
 
 // kinova api
 #include <client/RouterClient.h>
@@ -80,6 +84,14 @@ public:
 
   void write(void);
   void read(void);
+
+  // Soft-stop integration (see oxf20_soft_stop).  When true, the
+  // 1100 Hz control loop in main.cpp SHOULD skip robot.write() — the
+  // firmware has already faulted the arm via ApplyEmergencyStop, and
+  // continuing to push cyclic frames just produces error spam.
+  // Atomic so the spinner-thread callbacks and the main thread can
+  // read/write without an explicit mutex.
+  bool estopLatched() const { return m_estop_latched.load(std::memory_order_acquire); }
 
 private:
   std::string m_username;
@@ -176,6 +188,21 @@ private:
   pinocchio::Data data;
   std::string mURDFFile;
   std::string mPrefix;
+
+  // ---- Soft-stop bridge ------------------------------------------------
+  // Subscribers on the per-arm namespace's /in/* topics, fed by
+  // oxf20_soft_stop relays.  All callbacks fire on the AsyncSpinner
+  // thread; mBase RPCs from there are safe because the Kortex
+  // BaseClient is documented thread-safe for concurrent RPCs and the
+  // 1100 Hz write path uses mBaseCyclic (a separate UDP client).
+  ros::Subscriber m_estop_sub;
+  ros::Subscriber m_clear_faults_sub;
+  ros::Subscriber m_stop_sub;
+  std::atomic<bool> m_estop_latched{false};
+
+  void estopCallback(const std_msgs::Empty::ConstPtr& msg);
+  void clearFaultsCallback(const std_msgs::Empty::ConstPtr& msg);
+  void stopCallback(const std_msgs::Empty::ConstPtr& msg);
 };
 
 #endif

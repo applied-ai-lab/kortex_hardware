@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>kortex_hardware — Interactive Documentation</title>
+<style>
+  :root {
+    --bg: #14171f;
+    --panel: #1c2030;
+    --panel2: #232838;
+    --text: #e8eaf0;
+    --muted: #8a92a8;
+    --accent: #5da9ff;
+    --accent2: #f2a25c;
+    --code-bg: #0e1117;
+    --code-border: #2a3144;
+    --crit: #ff5a64;
+    --high: #ff8c42;
+    --med:  #ffcd3c;
+    --low:  #69c977;
+    --info: #5da9ff;
+    --kw: #c678dd;
+    --type: #56b6c2;
+    --str: #98c379;
+    --num: #d19a66;
+    --com: #6a7286;
+    --fn: #61afef;
+    --member: #e06c75;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", "Inter", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+  }
+  header {
+    padding: 28px 36px 16px;
+    background: linear-gradient(180deg, #1d2236 0%, #14171f 100%);
+    border-bottom: 1px solid #2a3144;
+  }
+  header h1 {
+    margin: 0 0 6px;
+    font-size: 28px;
+    letter-spacing: -0.01em;
+  }
+  header .sub {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  nav.tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 28px;
+    background: var(--panel);
+    border-bottom: 1px solid #2a3144;
+    overflow-x: auto;
+  }
+  nav.tabs button {
+    background: none;
+    border: none;
+    padding: 14px 16px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  nav.tabs button:hover { color: var(--text); }
+  nav.tabs button.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 28px 28px 80px;
+  }
+  section.tab-panel { display: none; }
+  section.tab-panel.active { display: block; }
+  h2 { font-size: 22px; margin: 32px 0 12px; color: var(--accent); }
+  h3 { font-size: 17px; margin: 24px 0 10px; color: var(--accent2); }
+  h4 { font-size: 14px; margin: 16px 0 6px; color: var(--text); text-transform: uppercase; letter-spacing: 0.05em; }
+  p, li { font-size: 14.5px; }
+  details {
+    background: var(--panel);
+    border: 1px solid #2a3144;
+    border-radius: 6px;
+    margin: 10px 0;
+    padding: 0;
+  }
+  details > summary {
+    padding: 12px 16px;
+    cursor: pointer;
+    list-style: none;
+    font-weight: 500;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before {
+    content: "▸";
+    color: var(--muted);
+    transition: transform 0.15s;
+    width: 12px;
+  }
+  details[open] > summary::before { transform: rotate(90deg); }
+  details > *:not(summary) { padding: 0 16px 16px; }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 4px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    font-family: "JetBrains Mono", "Menlo", "Consolas", monospace;
+    font-size: 12.5px;
+    line-height: 1.55;
+    margin: 8px 0;
+  }
+  code {
+    font-family: "JetBrains Mono", "Menlo", "Consolas", monospace;
+    background: var(--code-bg);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.9em;
+  }
+  pre code { background: none; padding: 0; }
+  .kw { color: var(--kw); }
+  .type { color: var(--type); }
+  .str { color: var(--str); }
+  .num { color: var(--num); }
+  .com { color: var(--com); font-style: italic; }
+  .fn { color: var(--fn); }
+  .mem { color: var(--member); }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 13.5px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #2a3144; vertical-align: top; }
+  th { background: var(--panel2); color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 11px; letter-spacing: 0.06em; }
+  tr:hover td { background: var(--panel); }
+  .pill {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .pill.crit { background: rgba(255,90,100,0.14); color: var(--crit); border: 1px solid rgba(255,90,100,0.4); }
+  .pill.high { background: rgba(255,140,66,0.14); color: var(--high); border: 1px solid rgba(255,140,66,0.4); }
+  .pill.med  { background: rgba(255,205,60,0.13); color: var(--med);  border: 1px solid rgba(255,205,60,0.4); }
+  .pill.low  { background: rgba(105,201,119,0.14); color: var(--low);  border: 1px solid rgba(105,201,119,0.4); }
+  .pill.info { background: rgba(93,169,255,0.14); color: var(--info); border: 1px solid rgba(93,169,255,0.4); }
+  .pill.new  { background: rgba(242,162,92,0.18); color: var(--accent2); border: 1px solid rgba(242,162,92,0.45); }
+  .callout {
+    background: rgba(93,169,255,0.06);
+    border-left: 3px solid var(--accent);
+    padding: 12px 14px;
+    margin: 14px 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .callout.warn { background: rgba(255,205,60,0.07); border-left-color: var(--med); }
+  .callout.crit { background: rgba(255,90,100,0.07); border-left-color: var(--crit); }
+  .file-ref {
+    font-family: "JetBrains Mono", monospace;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .threads-diagram, .flow-diagram {
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 4px;
+    padding: 14px;
+    margin: 12px 0;
+    overflow-x: auto;
+  }
+  .threads-diagram pre, .flow-diagram pre {
+    background: none;
+    border: none;
+    margin: 0;
+    padding: 0;
+    color: var(--text);
+  }
+  a { color: var(--accent); }
+  hr { border: 0; border-top: 1px solid #2a3144; margin: 28px 0; }
+  .toc { background: var(--panel2); border-radius: 6px; padding: 14px 18px; margin: 14px 0; }
+  .toc ul { margin: 6px 0 0; padding-left: 22px; }
+  .toc li { margin: 3px 0; font-size: 13px; }
+  ul.compact li { margin: 2px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>kortex_hardware</h1>
+  <div class="sub">Per-arm <code>ros_control</code> hardware interface for the Kinova Gen3, with Pinocchio gravity compensation and (new) soft-stop integration. Interactive documentation + vulnerability audit.</div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="overview">Overview</button>
+  <button class="tab-btn" data-tab="main">main.cpp</button>
+  <button class="tab-btn" data-tab="gen3">Gen3Robot anatomy</button>
+  <button class="tab-btn" data-tab="softstop">Soft-stop additions</button>
+  <button class="tab-btn" data-tab="threading">Threading model</button>
+  <button class="tab-btn" data-tab="vulns">Vulnerabilities</button>
+</nav>
+
+<main>
+
+<!-- ============================= OVERVIEW ============================= -->
+<section class="tab-panel active" id="overview">
+
+<h2>Overview</h2>
+<p>
+<code>kortex_hardware</code> is the per-arm <code>hardware_interface::RobotHW</code> implementation for the Kinova Gen3, written for the <em>compliant</em> control stack (the alternative to the upstream <code>kortex_arm_driver</code>). It opens a Kortex SDK session against one arm, exposes ROS-control joint handles, runs a 1100&nbsp;Hz cyclic loop, and applies Pinocchio-based gravity compensation in effort/torque mode.
+</p>
+
+<div class="callout">
+  <strong>Two arms, two processes.</strong> The dual-arm Frank robot launches this binary twice — once each under <code>/left_arm</code> and <code>/right_arm</code>. Each process holds its own Kortex SDK session, its own TCP+UDP routers, and (now) its own soft-stop subscribers. All <code>ros::Subscriber</code> paths in the new soft-stop code use relative names so they resolve into the per-arm namespace.
+</div>
+
+<div class="toc">
+  <strong>This document covers:</strong>
+  <ul>
+    <li><a href="#" data-tab="main">main.cpp — what the 40-line entry point actually does</a></li>
+    <li><a href="#" data-tab="gen3">Gen3Robot internals — sessions, cyclic loop, mode switching</a></li>
+    <li><a href="#" data-tab="softstop">The soft-stop additions — subscribers, atomic latch, callbacks</a></li>
+    <li><a href="#" data-tab="threading">Threading model — main vs spinner, what the atomic guards</a></li>
+    <li><a href="#" data-tab="vulns">Vulnerability audit — crash modes ranked by severity</a></li>
+  </ul>
+</div>
+
+<h3>Architecture at a glance</h3>
+
+<div class="threads-diagram">
+<pre>
+                     ┌────────────────────────────────────────────┐
+                     │              main.cpp                      │
+                     │  ┌──────────────────────────────────────┐  │
+                     │  │  Gen3Robot robot(nh)                 │  │
+                     │  │   ├─ TCP session  ── BaseClient*     │  │
+                     │  │   ├─ UDP session  ── BaseCyclic*     │  │
+                     │  │   ├─ ActuatorConfigClient*           │  │
+                     │  │   ├─ Pinocchio model + data          │  │
+                     │  │   ├─ LowPassFilter (in / out)        │  │
+                     │  │   └─ ros::Subscriber (in/*)  &lt;── NEW │  │
+                     │  └──────────────────────────────────────┘  │
+                     │  ┌──────────────────────────────────────┐  │
+                     │  │  controller_manager::ControllerMgr cm│  │
+                     │  └──────────────────────────────────────┘  │
+                     │                                            │
+       1100 Hz       │                ros::AsyncSpinner(1)        │   ROS callbacks
+       loop  ──►     │  read() → cm.update() → write() (gated)    │   (spinner thread)
+                     └────────────────────────────────────────────┘
+
+       TCP control channel ──► Kinova firmware
+       UDP cyclic channel  ──► Kinova firmware
+</pre>
+</div>
+
+<h3>Stacks</h3>
+<table>
+  <tr><th>Stack</th><th>Hardware iface</th><th>Used for</th></tr>
+  <tr><td><span class="pill info">Compliant</span></td><td><code>kortex_hardware</code> <em>(this package)</em></td><td>Default daily operation. Joint-level admittance / impedance shaping. Pinocchio gravity comp.</td></tr>
+  <tr><td><span class="pill low">Rigid</span></td><td><code>kortex_arm_driver</code> (upstream)</td><td>Firmware Cartesian / joint executors, Protection Zones, BaseCyclic at 1&nbsp;kHz.</td></tr>
+</table>
+<p><strong>The two stacks are mutually exclusive</strong> — both terminate at the same Kortex session. <code>oxf20_ridgeback_bringup/scripts/stack_guard.py</code> enforces this.</p>
+
+</section>
+
+<!-- ============================= MAIN.CPP ============================= -->
+<section class="tab-panel" id="main">
+
+<h2>main.cpp — line-by-line</h2>
+
+<p class="file-ref">src/main.cpp — 41 lines total</p>
+
+<pre><code><span class="com">// Pre-soft-stop main.cpp was identical except for the write() gate at line 34.</span>
+<span class="kw">#include</span> <span class="str">&lt;iostream&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;sstream&gt;</span>
+
+<span class="kw">#include</span> <span class="str">&lt;Gen3Robot.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;ros/rate.h&gt;</span>
+<span class="kw">#include</span> <span class="str">"std_msgs/String.h"</span>
+
+<span class="type">int</span> <span class="fn">main</span>(<span class="type">int</span> argc, <span class="type">char</span>* argv[])
+{
+  <span class="fn">ROS_INFO_STREAM</span>(<span class="str">"Gen3 HARDWARE starting"</span>);
+  ros::<span class="fn">init</span>(argc, argv, <span class="str">"kortex_hardware"</span>);
+  ros::NodeHandle nh;
+
+  Gen3Robot <span class="mem">robot</span>(nh);                                  <span class="com">// ① open Kortex sessions, register handles</span>
+  controller_manager::ControllerManager <span class="mem">cm</span>(&amp;robot);  <span class="com">// ② plug robot into controller_manager</span>
+  <span class="type">bool</span> use_admittance;
+  ros::param::<span class="fn">get</span>(<span class="str">"~use_admittance"</span>, use_admittance); <span class="com">// ③ ⚠ uninitialized if param absent — see Vulns</span>
+
+  ros::AsyncSpinner <span class="mem">spinner</span>(<span class="num">1</span>);
+  spinner.<span class="fn">start</span>();                                       <span class="com">// ④ start background spinner thread</span>
+
+  <span class="com">// Ros control rate of 1100Hz</span>
+  ros::Rate <span class="mem">controlRate</span>(<span class="num">1100</span>);
+  <span class="kw">while</span> (ros::<span class="fn">ok</span>())
+  {
+    robot.<span class="fn">read</span>();                                        <span class="com">// ⑤ pull last feedback from mLastFeedback into pos/vel/eff</span>
+    cm.<span class="fn">update</span>(robot.<span class="fn">get_time</span>(), robot.<span class="fn">get_period</span>());     <span class="com">// ⑥ tick all loaded controllers</span>
+
+    <span class="com">// Skip the cyclic write while the soft-stop is latched.</span>
+    <span class="com">// The firmware has already faulted the arm via ApplyEmergencyStop;</span>
+    <span class="com">// pushing further cyclic frames would just produce error spam.</span>
+    <span class="kw">if</span> (!use_admittance &amp;&amp; !robot.<span class="fn">estopLatched</span>())            <span class="com">// ⑦ NEW: gate on the atomic latch</span>
+      robot.<span class="fn">write</span>();                                       <span class="com">// ⑧ push command into mBaseCommand → BaseCyclic::Refresh</span>
+    controlRate.<span class="fn">sleep</span>();
+  }
+
+  <span class="kw">return</span> <span class="num">0</span>;
+}</code></pre>
+
+<h3>Per-step rationale</h3>
+
+<details open><summary>① <code>Gen3Robot robot(nh)</code> — what happens inside</summary>
+<ul>
+  <li>Reads private rosparams (<code>~ip_address</code>, <code>~username</code>, <code>~password</code>, timeouts).</li>
+  <li>Creates TCP and UDP transports (<code>TransportClientTcp</code> / <code>TransportClientUdp</code>) + their routers + their session managers.</li>
+  <li>Instantiates <code>k_api::Base::BaseClient* mBase</code> over the TCP router and <code>k_api::BaseCyclic::BaseCyclicClient* mBaseCyclic</code> over the UDP router. <strong>These are independent clients on independent sockets.</strong></li>
+  <li>Allocates <code>cmd_pos</code> / <code>cmd_vel</code> / <code>cmd_eff</code> vectors, registers joint handles for arm + gripper finger with the appropriate <code>JointStateInterface</code> / <code>EffortJointInterface</code> / <code>VelocityJointInterface</code> / <code>PositionJointInterface</code>.</li>
+  <li>Registers a service server <code>~set_control_mode</code> bound to <code>setControlMode</code>.</li>
+  <li>Calls <code>CreateSession</code> on both managers — throws <code>std::runtime_error</code> if the arm is unreachable.</li>
+  <li>Loads Pinocchio model from <code>mURDFFile</code>, precomputes gravity at the neutral pose.</li>
+  <li>Optionally sets CPU affinity and SCHED_FIFO priority on the main thread (compile-time gated on <code>__has_include(&lt;pthread.h&gt;)</code>).</li>
+  <li><span class="pill new">NEW</span> Attaches the three <code>ros::Subscriber</code>s for <code>in/emergency_stop</code>, <code>in/clear_faults</code>, <code>in/stop</code>.</li>
+</ul>
+</details>
+
+<details><summary>② <code>controller_manager::ControllerManager cm(&amp;robot)</code></summary>
+<p>Holds a non-owning pointer to the hardware interface. On each <code>cm.update()</code> it reads joint states from the registered handles, ticks the active controllers, and writes commands back into the <code>cmd_pos</code> / <code>cmd_vel</code> / <code>cmd_eff</code> arrays inside <code>Gen3Robot</code>. The controllers themselves are loaded dynamically via <code>controller_manager</code>'s services — <code>load_controller</code>, <code>switch_controller</code>, etc.</p>
+</details>
+
+<details><summary>③ <code>ros::param::get("~use_admittance", ...)</code></summary>
+<p>If the param exists, populates <code>use_admittance</code>. If it doesn't, <code>get</code> returns <code>false</code> and <code>use_admittance</code> stays at its initial value — which is <strong>indeterminate</strong> because it's declared without an initializer. The <code>if (!use_admittance ...)</code> below reads UB. See vulnerability <a href="#V-3" data-tab="vulns">V-3</a>.</p>
+</details>
+
+<details><summary>④ <code>ros::AsyncSpinner spinner(1); spinner.start()</code></summary>
+<p>Single background thread that services all <code>ros::Subscriber</code> callbacks, including the new soft-stop ones. The main thread does <em>not</em> spin — it just runs the 1100 Hz loop. This is the source of the threading complexity covered in the <a href="#" data-tab="threading">Threading model</a> tab.</p>
+</details>
+
+<details><summary>⑤ <code>robot.read()</code></summary>
+<p>If this is the first cycle or admittance is on, calls <code>mBaseCyclic-&gt;RefreshFeedback()</code> to pull a fresh frame; otherwise reuses <code>mLastFeedback</code>. Translates Kortex's degrees/percent into SI radians and m, runs the input feedback through <code>in_lpf</code> (a low-pass filter), and writes into <code>pos</code> / <code>vel</code> / <code>eff</code>. The reason <code>read()</code> mostly <em>doesn't</em> call <code>RefreshFeedback</code> is that <code>Refresh()</code> (called by <code>write()</code>) returns a fresh feedback as a side effect, so reading from <code>mLastFeedback</code> is normally up-to-date.</p>
+</details>
+
+<details><summary>⑥ <code>cm.update(...)</code></summary>
+<p>Runs each active controller's <code>update()</code> at this iteration's timestamp. Controllers write desired commands into <code>cmd_pos[]</code> / <code>cmd_vel[]</code> / <code>cmd_eff[]</code>. <strong>Key:</strong> the controllers don't know whether the hardware interface will actually forward the commands — they always write, and <code>write()</code> decides whether to ship them.</p>
+</details>
+
+<details><summary>⑦ Gate <span class="pill new">NEW</span></summary>
+<p>The conjunction <code>!use_admittance &amp;&amp; !robot.estopLatched()</code> determines whether <code>write()</code> runs this cycle.</p>
+<ul class="compact">
+  <li><code>!use_admittance</code>: pre-existing condition — admittance mode delegates write to another component, so the hardware iface skips its own write.</li>
+  <li><code>!robot.estopLatched()</code>: NEW — when the soft-stop callback latched <code>m_estop_latched=true</code>, this cycle's <code>write()</code> is suppressed. Combined with the firmware-level <code>ApplyEmergencyStop</code> (which already faulted the arm), this prevents the cyclic loop from spam-pushing rejected frames at 1100 Hz.</li>
+</ul>
+</details>
+
+<details><summary>⑧ <code>robot.write()</code> — what it actually does</summary>
+<p>Dispatches based on <code>arm_mode</code> (set via the <code>~set_control_mode</code> service):</p>
+<ul class="compact">
+  <li><code>MODE_VELOCITY</code> → <code>sendVelocityCommand(cmd_vel)</code> — calls <code>mBase-&gt;SendJointSpeedsCommand</code> (TCP RPC, NOT cyclic).</li>
+  <li><code>MODE_POSITION</code> → <code>sendPositionCommand(cmd_pos)</code> — calls <code>mBase-&gt;ExecuteAction</code> (TCP RPC, <strong>blocking action</strong> — see vulnerability <a href="#V-7" data-tab="vulns">V-7</a>).</li>
+  <li><code>MODE_EFFORT</code> → <code>sendTorqueCommand(cmd_eff)</code> or <code>sendCurrentCommand(cmd_eff)</code> — applies gravity compensation, then calls <code>mBaseCyclic-&gt;Refresh(mBaseCommand, 0)</code> (UDP cyclic, true 1 kHz path).</li>
+  <li><code>EMERGENCY_STOP</code> → sends zero torque/current via the same cyclic path.</li>
+</ul>
+<p>The arm mode is sticky: <code>last_arm_mode != arm_mode</code> triggers a mode-switch dance involving <code>ClearFaults</code>, servoing-mode change between <code>LOW_LEVEL_SERVOING</code> and <code>SINGLE_LEVEL_SERVOING</code>, and per-actuator <code>SetControlMode</code>.</p>
+</details>
+
+</section>
+
+<!-- ============================= GEN3ROBOT ============================= -->
+<section class="tab-panel" id="gen3">
+
+<h2>Gen3Robot anatomy</h2>
+
+<h3>Member layout</h3>
+<table>
+  <tr><th>Member</th><th>Purpose</th></tr>
+  <tr><td><code>m_tcp_transport</code> / <code>m_tcp_router</code> / <code>m_tcp_session_manager</code></td><td>TCP RPC stack for the BaseClient (one-shot commands, mode switches, fault clearing).</td></tr>
+  <tr><td><code>m_udp_transport</code> / <code>m_udp_router</code> / <code>m_udp_session_manager</code></td><td>UDP RPC stack for the BaseCyclic client (1&nbsp;kHz cyclic frames).</td></tr>
+  <tr><td><code>mBase</code></td><td><code>k_api::Base::BaseClient*</code> — TCP. <strong>Shared between main thread and spinner thread.</strong></td></tr>
+  <tr><td><code>mBaseCyclic</code></td><td><code>k_api::BaseCyclic::BaseCyclicClient*</code> — UDP. Main thread only.</td></tr>
+  <tr><td><code>mBaseCommand</code> / <code>mLastFeedback</code></td><td>Protobuf message buffers reused every cycle. Frame ID increments mod 65535.</td></tr>
+  <tr><td><code>mActuatorConfig</code></td><td><code>k_api::ActuatorConfig::ActuatorConfigClient*</code> for per-actuator <code>SetControlMode</code> (TORQUE / CURRENT / POSITION).</td></tr>
+  <tr><td><code>cmd_pos</code> / <code>cmd_vel</code> / <code>cmd_eff</code></td><td>Command arrays — controller_manager writes; <code>write()</code> reads.</td></tr>
+  <tr><td><code>pos</code> / <code>vel</code> / <code>eff</code></td><td>State arrays — <code>read()</code> writes; controller_manager reads.</td></tr>
+  <tr><td><code>in_lpf</code> / <code>out_lpf</code></td><td>Low-pass filters (1000 Hz sample, 30 / 100 Hz cutoff). Allocated as raw pointers; never freed.</td></tr>
+  <tr><td><code>model</code> / <code>data</code> / <code>q_</code> / <code>gravity_</code></td><td>Pinocchio rigid-body dynamics, used for gravity compensation in effort mode.</td></tr>
+  <tr><td><code>mActuatorCount</code></td><td><strong>Uninitialized in the ctor</strong> — set first by <code>switchToEffortMode()</code> via <code>mBase-&gt;GetActuatorCount().count()</code>. Used by the destructor. See <a href="#V-1" data-tab="vulns">V-1</a>.</td></tr>
+  <tr><td><span class="pill new">NEW</span> <code>m_estop_sub</code> / <code>m_clear_faults_sub</code> / <code>m_stop_sub</code></td><td>Three <code>ros::Subscriber</code>s on the per-arm <code>in/*</code> topics.</td></tr>
+  <tr><td><span class="pill new">NEW</span> <code>m_estop_latched</code></td><td><code>std::atomic&lt;bool&gt;</code>, default false. Set by <code>estopCallback</code>; cleared by <code>clearFaultsCallback</code> on full success; read by <code>estopLatched()</code> from main thread.</td></tr>
+</table>
+
+<h3>Constructor flow</h3>
+
+<details open><summary>Phase 1: rosparam ingestion + transport setup</summary>
+<ul class="compact">
+  <li>Reads <code>~ip_address</code>, <code>~username</code>, <code>~password</code>, <code>~urdf_file</code>, <code>~prefix</code>, timeout params.</li>
+  <li>Constructs TCP/UDP transports, routers (with inline lambda error handlers that <code>ROS_ERROR</code> on Kortex protocol errors), and session managers.</li>
+  <li>Creates <code>mBase</code>, <code>mBaseCyclic</code>, <code>mActuatorConfig</code>.</li>
+</ul>
+</details>
+
+<details><summary>Phase 2: ros_control interface registration</summary>
+<ul class="compact">
+  <li>Resizes cmd / state vectors to <code>num_full_dof</code> (= <code>num_arm_dof + num_finger_dof</code>).</li>
+  <li>Per-joint: <code>JointStateHandle</code> → <code>JointStateInterface</code>; cmd handles → vel/pos/eff interfaces.</li>
+  <li>Special-case gripper finger handle on the last index.</li>
+  <li>Registers all four interfaces with the base class via <code>registerInterface</code>.</li>
+  <li>Registers a <code>JointModeHandle</code> for arm_mode and gripper_mode, then registers the mode interface.</li>
+  <li>Advertises <code>~set_control_mode</code> service.</li>
+</ul>
+</details>
+
+<details><summary>Phase 3: Kortex session creation</summary>
+<pre><code>auto createSessionInfo = Kinova::Api::Session::CreateSessionInfo();
+createSessionInfo.set_username(m_username);
+createSessionInfo.set_password(m_password);
+createSessionInfo.set_session_inactivity_timeout(m_api_session_inactivity_timeout_ms);
+createSessionInfo.set_connection_inactivity_timeout(m_api_connection_inactivity_timeout_ms);
+try {
+  m_tcp_session_manager->CreateSession(createSessionInfo);
+  m_udp_session_manager->CreateSession(createSessionInfo);
+} catch (std::runtime_error&amp; ex_runtime) {
+  ROS_ERROR("The node could not connect to the arm...");
+  throw ex_runtime;  <span class="com">// re-thrown ⇒ unwind, but leaks all `new`d members. See V-5.</span>
+}</code></pre>
+</details>
+
+<details><summary>Phase 4: Initial fault clear + filter / Pinocchio init</summary>
+<ul class="compact">
+  <li><code>mBase-&gt;ClearFaults()</code> in a <code>try { ... } catch (...) { return; }</code> block — <strong>silent partial init</strong> if it fails. See <a href="#V-2" data-tab="vulns">V-2</a>.</li>
+  <li>Allocates LowPassFilters via <code>new</code> (never freed).</li>
+  <li>Hard-coded current limits / gear ratios for 6-DOF vs 7-DOF Gen3.</li>
+  <li><code>pinocchio::urdf::buildModel(mURDFFile, model)</code> — throws if URDF is empty/unreadable; not caught here.</li>
+</ul>
+</details>
+
+<details><summary>Phase 5: Real-time thread priority (compile-gated)</summary>
+<p>If <code>&lt;pthread.h&gt;</code> + <code>&lt;sched.h&gt;</code> are available at compile time, attempts to pin the main thread to <code>~cpu_core</code> and elevate priority to <code>SCHED_FIFO</code> max if <code>/sys/kernel/realtime</code> reports a real-time kernel. Failures are logged but non-fatal.</p>
+</details>
+
+<details><summary><span class="pill new">NEW</span> Phase 6: soft-stop subscribers</summary>
+<pre><code>m_estop_sub        = nh.subscribe(<span class="str">"in/emergency_stop"</span>, <span class="num">1</span>, &amp;Gen3Robot::estopCallback,        <span class="kw">this</span>);
+m_clear_faults_sub = nh.subscribe(<span class="str">"in/clear_faults"</span>,   <span class="num">1</span>, &amp;Gen3Robot::clearFaultsCallback, <span class="kw">this</span>);
+m_stop_sub         = nh.subscribe(<span class="str">"in/stop"</span>,            <span class="num">1</span>, &amp;Gen3Robot::stopCallback,        <span class="kw">this</span>);</code></pre>
+<p>Relative names — under <code>&lt;node ns="left_arm" ...&gt;</code> the launch resolves these to <code>/left_arm/in/emergency_stop</code> etc. The <code>oxf20_soft_stop/launch/relays.launch</code> bridges the global <code>/in/*</code> topics onto these per-arm ones.</p>
+</details>
+
+<h3>The hot path: <code>read()</code> → <code>write()</code></h3>
+
+<details><summary><code>read()</code> — feedback ingestion</summary>
+<pre><code><span class="kw">if</span> (!mFirstFeedbackReceived || mUseAdmittance) {
+  mLastFeedback = mBaseCyclic-&gt;<span class="fn">RefreshFeedback</span>();        <span class="com">// explicit feedback fetch only when needed</span>
+  mFirstFeedbackReceived = <span class="kw">true</span>;
+}
+<span class="kw">for</span> (<span class="type">size_t</span> i = <span class="num">0</span>; i &lt; num_arm_dof; ++i) {
+  pos[i] = <span class="fn">degreesToRadians</span>(mLastFeedback.<span class="fn">actuators</span>(i).<span class="fn">position</span>());
+  <span class="kw">if</span> (pos[i] &gt; M_PI) pos[i] -= <span class="num">2</span> * M_PI;             <span class="com">// wrap to (-π, π]</span>
+  vel[i] = <span class="fn">degreesToRadians</span>(mLastFeedback.<span class="fn">actuators</span>(i).<span class="fn">velocity</span>());
+  eff[i] = mLastFeedback.<span class="fn">actuators</span>(i).<span class="fn">torque</span>();
+}
+<span class="com">// gripper finger: percent → fraction (0-1)</span>
+pos[num_full_dof - <span class="num">1</span>] = mLastFeedback.<span class="fn">interconnect</span>().<span class="fn">gripper_feedback</span>()
+                            .<span class="fn">motor</span>()[<span class="num">0</span>].<span class="fn">position</span>() / <span class="num">100.0</span>;
+<span class="com">// ... (similar for vel, eff) ...</span>
+in_lpf-&gt;<span class="fn">getFilteredEffort</span>(eff);                            <span class="com">// in-place low-pass</span></code></pre>
+</details>
+
+<details><summary><code>write()</code> — mode dispatch + cyclic refresh</summary>
+<p>On mode change: clears faults, optionally switches servoing mode, optionally re-runs <code>switchToEffortMode</code>. Then dispatches by <code>arm_mode</code> as listed in the main.cpp section. The <code>EMERGENCY_STOP</code> arm-mode case is unrelated to the new soft-stop latch — it's a stateful mode you can enter via the <code>~set_control_mode</code> service that puts the arm in zero-torque output. Distinct from the firmware-level fault.</p>
+</details>
+
+<details><summary>Destructor</summary>
+<p>Applies an emergency stop, clears faults, sets all actuators back to POSITION control, restores SINGLE_LEVEL_SERVOING, closes both sessions, deactivates routers, disconnects transports, and finally <code>delete</code>s the six router/session/transport pointers (but not <code>mActuatorConfig</code>, <code>in_lpf</code>, <code>out_lpf</code>, or <code>finger</code> — see <a href="#V-4" data-tab="vulns">V-4</a>).</p>
+</details>
+
+</section>
+
+<!-- ============================= SOFTSTOP ============================= -->
+<section class="tab-panel" id="softstop">
+
+<h2>Soft-stop additions <span class="pill new">NEW</span></h2>
+
+<p>Three new ROS subscribers, three callbacks, one atomic latch, one gate in main.cpp. The full diff is small but the design has subtleties worth knowing.</p>
+
+<h3>Why the latch exists</h3>
+<p>The firmware's <code>ApplyEmergencyStop</code> faults the arm. With the arm faulted, BaseCyclic frames are <em>rejected</em> by the firmware — they don't cause motion, but they do return errors. At 1100 Hz that's 1100 errors per second of log noise. The atomic latch tells <code>main.cpp</code> to skip <code>write()</code> until ClearFaults runs, eliminating the spam.</p>
+
+<div class="callout">
+  <strong>Important:</strong> the latch is <em>not</em> the safety mechanism. The firmware's fault state is. If the latch is bypassed (e.g. logic bug), the arm still doesn't move — the firmware refuses the commands. The latch is bookkeeping.
+</div>
+
+<h3>The three callbacks</h3>
+
+<details open><summary><code>estopCallback</code> — fail-safe path</summary>
+<pre><code><span class="type">void</span> Gen3Robot::<span class="fn">estopCallback</span>(<span class="kw">const</span> std_msgs::Empty::ConstPtr&amp;)
+{
+  <span class="com">// Latch BEFORE issuing the RPC so even if it blocks briefly,</span>
+  <span class="com">// the next write() is already suppressed.</span>
+  m_estop_latched.<span class="fn">store</span>(<span class="kw">true</span>, std::memory_order_release);
+  <span class="fn">ROS_WARN</span>(<span class="str">"[kortex_hardware] EMERGENCY STOP received"</span>);
+  <span class="kw">try</span> {
+    mBase-&gt;<span class="fn">ApplyEmergencyStop</span>(<span class="num">0</span>, {<span class="kw">false</span>, <span class="num">0</span>, <span class="num">100</span>});
+  } <span class="kw">catch</span> (k_api::KDetailedException&amp; ex) {
+    <span class="fn">ROS_ERROR</span>(<span class="str">"[kortex_hardware] ApplyEmergencyStop failed: %s"</span>, ex.<span class="fn">what</span>());
+    <span class="com">// Latch stays TRUE — better latched-with-error than blindly resuming.</span>
+  }
+}</code></pre>
+<p>Ordering matters: <code>store</code> before the RPC means a race where the spinner thread is preempted right after latching but before the firmware call still leaves the system in a safe state (no cyclic writes happening).</p>
+</details>
+
+<details><summary><code>clearFaultsCallback</code> — recovery path</summary>
+<pre><code><span class="type">void</span> Gen3Robot::<span class="fn">clearFaultsCallback</span>(<span class="kw">const</span> std_msgs::Empty::ConstPtr&amp;)
+{
+  <span class="fn">ROS_INFO</span>(<span class="str">"[kortex_hardware] CLEAR FAULTS received"</span>);
+  <span class="kw">try</span> {
+    mBase-&gt;<span class="fn">ClearFaults</span>();
+    <span class="com">// Re-establish LOW_LEVEL_SERVOING.  Without this, fault clears</span>
+    <span class="com">// but the arm refuses subsequent cyclic frames silently.</span>
+    mServoingMode.<span class="fn">set_servoing_mode</span>(k_api::Base::ServoingMode::LOW_LEVEL_SERVOING);
+    mBase-&gt;<span class="fn">SetServoingMode</span>(mServoingMode);
+  } <span class="kw">catch</span> (k_api::KDetailedException&amp; ex) {
+    <span class="fn">ROS_ERROR</span>(<span class="str">"[kortex_hardware] ClearFaults/SetServoingMode failed: %s"</span>, ex.<span class="fn">what</span>());
+    <span class="kw">return</span>;  <span class="com">// keep latch on; safer to stay stopped than half-recovered</span>
+  }
+  m_estop_latched.<span class="fn">store</span>(<span class="kw">false</span>, std::memory_order_release);
+  <span class="fn">ROS_INFO</span>(<span class="str">"[kortex_hardware] faults cleared, control loop re-enabled"</span>);
+}</code></pre>
+<p>Two RPCs in sequence. Either failing keeps the latch on. The order — clear before servoing-mode — matches the recovery pattern at lines 644–660 and 838–866 of the existing code.</p>
+<p><strong>Gap:</strong> per-actuator <code>SetControlMode</code> (TORQUE/CURRENT) is <em>not</em> re-applied here. If the firmware fault demoted actuators to POSITION mode, the next cyclic frame in effort mode will have no effect. See <a href="#V-6" data-tab="vulns">V-6</a>.</p>
+</details>
+
+<details><summary><code>stopCallback</code> — soft stop, no latch</summary>
+<pre><code><span class="type">void</span> Gen3Robot::<span class="fn">stopCallback</span>(<span class="kw">const</span> std_msgs::Empty::ConstPtr&amp;)
+{
+  <span class="fn">ROS_INFO</span>(<span class="str">"[kortex_hardware] SOFT STOP received"</span>);
+  <span class="kw">try</span> { mBase-&gt;<span class="fn">Stop</span>(); }
+  <span class="kw">catch</span> (k_api::KDetailedException&amp; ex) { <span class="fn">ROS_ERROR</span>(...); }
+}</code></pre>
+<p><code>Base::Stop</code> is a non-faulting decel. The arm comes to rest but accepts cyclic frames again immediately — no clear-faults needed, no latching needed.</p>
+</details>
+
+<h3>End-to-end flow on E-Stop</h3>
+
+<div class="flow-diagram">
+<pre>
+[Operator] presses button
+    │
+    ▼
+[firmware: Arduino] {"state":0}\n  (10 Hz periodic — see oxf20_soft_stop firmware)
+    │
+    ▼
+[host:    serial_soft_stop.py] reads JSON, edge-triggers
+    │  publishes Empty (latched, 20× burst @ 20 Hz)
+    ▼
+/in/emergency_stop ─────────────────────────────────────────┐
+    │                                                       │
+    ├──► /left_arm/in/emergency_stop  (relay)              │
+    │       │                                              │
+    │       ▼                                              │
+    │     [kortex_hardware:left]                            │
+    │       Gen3Robot::estopCallback                        │
+    │         ├─ m_estop_latched.store(true)                │
+    │         └─ mBase->ApplyEmergencyStop()  ── FIRMWARE STOPS ARM
+    │
+    └──► /right_arm/in/emergency_stop  (relay)
+            │
+            ▼
+          [kortex_hardware:right] same as above
+
+[host: controller_estop_handler.py]
+    list_controllers in /left_arm  → save running
+    list_controllers in /right_arm → save running
+    switch_controller(stop=running)  in both
+
+[main.cpp 1100 Hz loop]
+    read();                        ← still runs
+    cm.update();                   ← still runs (controllers stopped, no commands written)
+    if (!use_admittance && !robot.estopLatched())  ← gate fires
+      write();                     ← SKIPPED until clear_faults runs
+    controlRate.sleep();
+</pre>
+</div>
+
+</section>
+
+<!-- ============================= THREADING ============================= -->
+<section class="tab-panel" id="threading">
+
+<h2>Threading model</h2>
+
+<p>Two threads of execution in this process:</p>
+
+<table>
+  <tr><th>Thread</th><th>Started by</th><th>What it runs</th><th>Accesses</th></tr>
+  <tr><td><strong>Main thread</strong></td><td>process startup</td><td>The <code>while(ros::ok())</code> loop in main.cpp at 1100 Hz</td><td><code>robot.read()</code>, <code>cm.update()</code>, <code>robot.write()</code>, reads <code>m_estop_latched</code></td></tr>
+  <tr><td><strong>Spinner thread</strong></td><td><code>ros::AsyncSpinner(1)</code></td><td>All <code>ros::Subscriber</code> callbacks + service callbacks</td><td>Soft-stop callbacks, <code>setControlMode</code> service, writes <code>m_estop_latched</code>, calls <code>mBase-&gt;*</code></td></tr>
+</table>
+
+<h3>Shared state</h3>
+
+<table>
+  <tr><th>Object</th><th>Sharing model</th><th>Safety</th></tr>
+  <tr><td><code>m_estop_latched</code></td><td><code>std::atomic&lt;bool&gt;</code> with acquire/release ordering</td><td><span class="pill low">Safe</span> — atomic operations are wait-free, ordering pairs the spinner's <code>store(release)</code> with main's <code>load(acquire)</code>.</td></tr>
+  <tr><td><code>mBase</code></td><td>Pointer dereferenced from both threads</td><td><span class="pill med">Depends</span> — Kortex SDK <code>BaseClient</code> is documented as thread-safe for concurrent RPCs. Upstream <code>kortex_arm_driver</code> relies on this assumption. No explicit mutex in our code.</td></tr>
+  <tr><td><code>mServoingMode</code> (in <code>clearFaultsCallback</code>)</td><td>Written from spinner; also written in <code>write()</code>'s mode-switch path on main</td><td><span class="pill med">Racy</span> — the field is <code>k_api::Base::ServoingModeInformation</code>, no synchronization. Concurrent <code>set_servoing_mode</code> calls could interleave their internal writes. Practically benign because both threads set it to the same value.</td></tr>
+  <tr><td><code>mActuatorConfig</code></td><td>Same as <code>mBase</code> — TCP client shared</td><td>Same caveat as <code>mBase</code>.</td></tr>
+  <tr><td><code>cmd_pos</code> / <code>cmd_vel</code> / <code>cmd_eff</code></td><td>Written by controllers (via <code>cm.update</code>), read by <code>write()</code></td><td><span class="pill low">Same thread</span> — both run on main.</td></tr>
+  <tr><td><code>pos</code> / <code>vel</code> / <code>eff</code></td><td>Written by <code>read()</code>, read by controllers</td><td><span class="pill low">Same thread</span>.</td></tr>
+  <tr><td><code>arm_mode</code></td><td>Written by <code>setControlMode</code> service (spinner), read by <code>write()</code> (main)</td><td><span class="pill high">Unsynchronized</span> — <code>hardware_interface::JointCommandModes</code> is an enum, but writes from the spinner during a <code>write()</code> dispatch could cause inconsistent reads. See <a href="#V-8" data-tab="vulns">V-8</a>.</td></tr>
+</table>
+
+<h3>The Kortex BaseClient thread-safety question</h3>
+<p>The Kortex SDK ships its TCP traffic via an internal <code>RouterClient</code> that serializes outbound frames on a single queue. Concurrent RPCs from multiple threads are documented to interleave safely on this queue. The upstream <code>kortex_arm_driver</code> depends on this (its <code>/in/*</code> subscribers fire from the spinner thread while the main thread is mid-trajectory) and works in production. So our pattern of spinner-thread callbacks calling <code>mBase-&gt;ApplyEmergencyStop()</code> while the main thread is potentially mid-<code>mBase-&gt;ExecuteAction()</code> follows established convention.</p>
+<p>That said, the SDK source is closed and the thread-safety claim is documentation, not a formal guarantee. If you want belt-and-braces, wrap mBase calls in a <code>std::mutex m_base_mutex</code> — adds ~5 lines, costs &lt;1µs per acquire.</p>
+
+</section>
+
+<!-- ============================= VULNERABILITIES ============================= -->
+<section class="tab-panel" id="vulns">
+
+<h2>Vulnerability audit</h2>
+
+<p>Crash, hang, and undefined-behaviour modes ranked by severity. Severity reflects "how likely is this to actually bite" combined with "how bad is the outcome when it does."</p>
+
+<h3>Summary matrix</h3>
+
+<table>
+  <tr><th>#</th><th>Severity</th><th>Location</th><th>Issue</th></tr>
+  <tr><td><a href="#V-1">V-1</a></td><td><span class="pill crit">Crit</span></td><td>Gen3Robot.cpp dtor, ~L417</td><td>Destructor iterates with uninitialized <code>mActuatorCount</code></td></tr>
+  <tr><td><a href="#V-2">V-2</a></td><td><span class="pill high">High</span></td><td>Gen3Robot.cpp ctor, L237–243</td><td>Silent partial-init <code>return</code> after <code>ClearFaults</code> failure leaves filters/Pinocchio unconstructed</td></tr>
+  <tr><td><a href="#V-3">V-3</a></td><td><span class="pill high">High</span></td><td>main.cpp L17–18</td><td>Uninitialized <code>use_admittance</code> if rosparam absent — read in gate condition (UB)</td></tr>
+  <tr><td><a href="#V-4">V-4</a></td><td><span class="pill med">Med</span></td><td>Gen3Robot.cpp dtor</td><td>Resource leaks: <code>mActuatorConfig</code>, <code>in_lpf</code>, <code>out_lpf</code>, <code>finger</code> never <code>delete</code>d</td></tr>
+  <tr><td><a href="#V-5">V-5</a></td><td><span class="pill med">Med</span></td><td>Gen3Robot.cpp ctor exception paths</td><td>Throwing ctor doesn't release earlier <code>new</code>d resources → leak (process exits anyway, so cosmetic)</td></tr>
+  <tr><td><a href="#V-6">V-6</a></td><td><span class="pill low">Fixed</span></td><td>clearFaultsCallback</td><td><s>Doesn't re-apply per-actuator <code>SetControlMode</code></s> — fixed: callback now restores LOW_LEVEL_SERVOING + per-actuator TORQUE/CURRENT (gated on mLowLevelServoing && mActuatorCount &gt; 0), or SINGLE_LEVEL_SERVOING otherwise.</td></tr>
+  <tr><td><a href="#V-7">V-7</a></td><td><span class="pill high">High</span></td><td>sendPositionCommand, L505–588</td><td>Calls blocking <code>mBase-&gt;ExecuteAction</code> at 1100 Hz — channel saturation</td></tr>
+  <tr><td><a href="#V-8">V-8</a></td><td><span class="pill med">Med</span></td><td>setControlMode service</td><td><code>bool</code> return type with no <code>return</code> on any path — UB caller value. Plus unsynchronized write to <code>arm_mode</code>.</td></tr>
+  <tr><td><a href="#V-9">V-9</a></td><td><span class="pill med">Med</span></td><td>sendVelocityCommand L602</td><td><code>command.size() - 1</code> with no empty check; if size is 0, loop iterates SIZE_MAX times</td></tr>
+  <tr><td><a href="#V-10">V-10</a></td><td><span class="pill low">Fixed</span></td><td>Gen3Robot.cpp ctor, ~L270</td><td><s><code>pinocchio::urdf::buildModel</code> throws unhandled</s> — fixed: wrapped in try/catch with <code>ROS_FATAL</code> identifying the bad path, rethrown; main.cpp now catches at the top level and returns 1 cleanly. <code>use_admittance</code> also defaulted to <code>false</code> (incidental V-3 fix).</td></tr>
+  <tr><td><a href="#V-11">V-11</a></td><td><span class="pill low">Low</span></td><td>sendCurrentCommand L837</td><td>Busy-wait <code>while (now - last &lt; 1000)</code> burns CPU on non-RT cores</td></tr>
+  <tr><td><a href="#V-12">V-12</a></td><td><span class="pill low">Low</span></td><td>main.cpp L33</td><td>Doesn't check <code>controlRate.sleep()</code> return — silently runs slower than 1100 Hz under load</td></tr>
+  <tr><td><a href="#V-13">V-13</a></td><td><span class="pill med">Med</span></td><td>estopCallback / clearFaultsCallback</td><td>If E-Stop fires before <code>mBase</code> is fully constructed (or after partial dtor), null/dangling dereference</td></tr>
+  <tr><td><a href="#V-14">V-14</a></td><td><span class="pill low">Low</span></td><td>Gen3Robot.cpp, multiple sites</td><td><code>std::cout</code> instead of <code>ROS_INFO</code> — bypasses ROS log routing, can interleave between threads</td></tr>
+  <tr><td><a href="#V-15">V-15</a></td><td><span class="pill med">Med</span></td><td>Gen3Robot.cpp read() L1014</td><td>If <code>mBaseCyclic-&gt;RefreshFeedback()</code> throws on first call, <code>mFirstFeedbackReceived</code> stays false and subsequent reads use uninitialized <code>mLastFeedback</code></td></tr>
+</table>
+
+<h3>Detailed entries</h3>
+
+<details id="V-1" open>
+  <summary><span class="pill crit">Critical</span> &nbsp;V-1: destructor iterates with uninitialized <code>mActuatorCount</code></summary>
+  <p><strong>File:</strong> <code>Gen3Robot.h:178</code>, <code>Gen3Robot.cpp:414–417</code></p>
+  <pre><code><span class="com">// Gen3Robot.h</span>
+<span class="type">unsigned int</span> mActuatorCount;                          <span class="com">// no in-class initializer</span>
+
+<span class="com">// Gen3Robot.cpp, destructor:</span>
+mControlModeMessage.<span class="fn">set_control_mode</span>(k_api::ActuatorConfig::ControlMode::POSITION);
+<span class="kw">for</span> (<span class="type">int</span> idx = <span class="num">0</span>; idx &lt; mActuatorCount; idx++)    <span class="com">// ← UB if dtor runs before switchToEffortMode</span>
+  mActuatorConfig-&gt;<span class="fn">SetControlMode</span>(mControlModeMessage, idx + <span class="num">1</span>);</code></pre>
+  <p><strong>Path to bug:</strong> <code>mActuatorCount</code> is first assigned inside <code>switchToEffortMode()</code>. If the destructor runs before any effort-mode entry (e.g. Ctrl-C immediately after launch, or any ROS shutdown that fires before the first effort-mode trigger), the loop iterates with a garbage value — possibly billions of times, possibly accessing invalid actuator IDs and triggering Kortex SDK exceptions inside the dtor.</p>
+  <p><strong>Fix:</strong> initialize <code>mActuatorCount{0}</code> at the declaration, OR query <code>mBase-&gt;GetActuatorCount().count()</code> in the ctor.</p>
+</details>
+
+<details id="V-2">
+  <summary><span class="pill high">High</span> &nbsp;V-2: silent partial-init in ctor</summary>
+  <p><strong>File:</strong> <code>Gen3Robot.cpp:234–243</code></p>
+  <pre><code><span class="com">// Clearing faults</span>
+<span class="kw">try</span> { mBase-&gt;<span class="fn">ClearFaults</span>(); }
+<span class="kw">catch</span> (...) {
+  std::cout &lt;&lt; <span class="str">"Unable to clear robot faults"</span> &lt;&lt; std::endl;
+  <span class="kw">return</span>;                                              <span class="com">// ← bails out of CONSTRUCTOR</span>
+}
+<span class="com">// ... LowPassFilter, Pinocchio model, subscribers, etc. SKIPPED ...</span></code></pre>
+  <p><strong>Impact:</strong> Construction "succeeds" (no exception thrown) but the object is half-built. Subsequent <code>read()</code> dereferences <code>in_lpf</code> (which is still <code>nullptr</code> — declared as <code>LowPassFilter*</code> with no in-class init), and the soft-stop subscribers were never attached so E-Stop topic is silent. Effort mode reads <code>model</code>/<code>data</code> Pinocchio objects in an uninitialized state.</p>
+  <p><strong>Fix:</strong> either re-throw the exception (so <code>main</code> can detect failure), or perform initialization in a recoverable order so that "no faults cleared" is not fatal.</p>
+</details>
+
+<details id="V-3">
+  <summary><span class="pill high">High</span> &nbsp;V-3: <code>use_admittance</code> read uninitialized</summary>
+  <p><strong>File:</strong> <code>main.cpp:17–18, 34</code></p>
+  <pre><code><span class="type">bool</span> use_admittance;                                        <span class="com">// no initializer</span>
+ros::param::<span class="fn">get</span>(<span class="str">"~use_admittance"</span>, use_admittance);      <span class="com">// noop if param absent</span>
+<span class="com">// ... later:</span>
+<span class="kw">if</span> (!use_admittance &amp;&amp; !robot.<span class="fn">estopLatched</span>())               <span class="com">// ← UB read</span>
+  robot.<span class="fn">write</span>();</code></pre>
+  <p><strong>Impact:</strong> If the launch file forgets <code>&lt;param name="use_admittance" .../&gt;</code>, the gate flips a coin. Could end up running <code>write()</code> in admittance mode (double-driving the arm) or skipping <code>write()</code> in normal mode (arm sits frozen).</p>
+  <p><strong>Fix:</strong> <code>bool use_admittance = false;</code> at the declaration.</p>
+</details>
+
+<details id="V-4">
+  <summary><span class="pill med">Med</span> &nbsp;V-4: destructor leaks several resources</summary>
+  <p><strong>File:</strong> <code>Gen3Robot.cpp:434–442</code></p>
+  <p>The destructor deletes the six router/session/transport pointers but not <code>mActuatorConfig</code>, <code>in_lpf</code>, <code>out_lpf</code>, or <code>finger</code>. Process exit reclaims memory anyway, but if <code>Gen3Robot</code> is ever constructed and destructed multiple times in a long-running process (e.g. test harness, lifecycle-style runtime), this leaks.</p>
+  <p><strong>Fix:</strong> wrap raw pointers in <code>std::unique_ptr</code> at the declaration. Eliminates the explicit deletes and makes ctor-throwing safe.</p>
+</details>
+
+<details id="V-5">
+  <summary><span class="pill med">Med</span> &nbsp;V-5: throwing ctor doesn't unwind earlier <code>new</code>s</summary>
+  <p><strong>File:</strong> <code>Gen3Robot.cpp:225–232</code></p>
+  <pre><code><span class="kw">try</span> {
+  m_tcp_session_manager-&gt;<span class="fn">CreateSession</span>(createSessionInfo);   <span class="com">// may throw</span>
+  m_udp_session_manager-&gt;<span class="fn">CreateSession</span>(createSessionInfo);
+} <span class="kw">catch</span> (std::runtime_error&amp; ex_runtime) {
+  <span class="fn">ROS_ERROR</span>(...);
+  <span class="kw">throw</span> ex_runtime;                                            <span class="com">// rethrow — but no cleanup</span>
+}</code></pre>
+  <p>By the time the exception is rethrown, the ctor has already allocated <code>m_tcp_transport</code>, <code>m_udp_transport</code>, both routers, both session managers, <code>mBase</code>, <code>mBaseCyclic</code>, <code>mActuatorConfig</code>. None get freed before the exception propagates. The process exits shortly after, so memory is reclaimed — cosmetic issue, but if any of those types has a non-trivial destructor (open sockets, etc.) those side effects don't run.</p>
+  <p><strong>Fix:</strong> same as V-4 — <code>std::unique_ptr</code> for the lot.</p>
+</details>
+
+<details id="V-6">
+  <summary><span class="pill med">Med</span> &nbsp;V-6: <code>clearFaultsCallback</code> skips per-actuator mode restore</summary>
+  <p><strong>File:</strong> <code>Gen3Robot.cpp:353–377</code></p>
+  <p>After <code>ApplyEmergencyStop</code>, actuators are demoted from <code>TORQUE</code>/<code>CURRENT</code> back to <code>POSITION</code> by the firmware. <code>clearFaultsCallback</code> re-applies <code>SetServoingMode(LOW_LEVEL_SERVOING)</code> but does <em>not</em> re-call <code>mActuatorConfig-&gt;SetControlMode(TORQUE, idx)</code> per-actuator. The existing recovery dance at lines 838–866 does both. Result: clear-faults appears to succeed, latch releases, <code>write()</code> resumes — but <code>sendTorqueCommand</code> sends torque commands to actuators in position mode → arm doesn't respond.</p>
+  <p><strong>Fix:</strong> after <code>SetServoingMode</code>, iterate <code>mActuatorCount</code> and re-apply <code>SetControlMode(TORQUE|CURRENT)</code>. Or factor lines 729–749 (<code>switchToEffortMode</code>) into a helper and call it.</p>
+</details>
+
+<details id="V-7">
+  <summary><span class="pill high">High</span> &nbsp;V-7: <code>sendPositionCommand</code> uses blocking action at 1100 Hz</summary>
+  <p><strong>File:</strong> <code>Gen3Robot.cpp:505–588</code></p>
+  <pre><code>mBase-&gt;<span class="fn">ExecuteAction</span>(action);   <span class="com">// blocking action — not a streaming setpoint</span></code></pre>
+  <p><code>ExecuteAction</code> is a one-shot reach-joint-angles action that the SDK queues server-side and runs to completion. Calling it at 1100 Hz floods the TCP channel and the firmware action queue. Position mode under this hardware iface is effectively unusable as a streaming setpoint. (The early <code>if (command == prev_cmd_pos) return;</code> guard mitigates this only when commands don't change.)</p>
+  <p><strong>Fix:</strong> use BaseCyclic position frames (<code>mBaseCommand.mutable_actuators(i)-&gt;set_position(...)</code> + <code>mBaseCyclic-&gt;Refresh</code>) for a true streaming position setpoint, the same pattern as torque/current modes.</p>
+</details>
+
+<details id="V-8">
+  <summary><span class="pill med">Med</span> &nbsp;V-8: <code>setControlMode</code> has no <code>return</code> statement</summary>
+  <p><strong>File:</strong> <code>Gen3Robot.cpp:447–476</code></p>
+  <pre><code><span class="type">bool</span> Gen3Robot::<span class="fn">setControlMode</span>(...)
+{
+  <span class="kw">if</span> (req.mode == <span class="str">"position"</span>)      { arm_mode = ...; resp.success = <span class="kw">true</span>; }
+  <span class="kw">else if</span> (req.mode == <span class="str">"velocity"</span>) { arm_mode = ...; resp.success = <span class="kw">true</span>; }
+  <span class="com">// ... etc ...</span>
+  <span class="kw">else</span> {
+    <span class="fn">ROS_ERROR</span>(<span class="str">"Invalid control mode"</span>);
+    resp.success = <span class="kw">false</span>;
+  }
+}                                                          <span class="com">// ← no `return` anywhere. UB caller value.</span></code></pre>
+  <p>Declared as returning <code>bool</code> but no <code>return</code> on any path. Most compilers warn (<code>-Wreturn-type</code>); some at <code>-O2</code> elide the warning and you read whatever's in EAX. ROS service callback's <em>actual</em> return semantics use <code>resp.success</code>, not the function return, so the practical impact is muted — but it's UB and breaks if anyone ever inspects the bool.</p>
+  <p>Additionally, <code>arm_mode</code> is written here from the spinner thread and read in <code>write()</code> from main without synchronization. Practically benign for an enum on x86 (read is atomic), but technically a data race.</p>
+  <p><strong>Fix:</strong> <code>return resp.success;</code> at the end. Optional: make <code>arm_mode</code> a <code>std::atomic&lt;hardware_interface::JointCommandModes&gt;</code>.</p>
+</details>
+
+<details id="V-9">
+  <summary><span class="pill med">Med</span> &nbsp;V-9: <code>sendVelocityCommand</code> empty-vector UB</summary>
+  <p><strong>File:</strong> <code>Gen3Robot.cpp:602</code></p>
+  <pre><code><span class="kw">for</span> (<span class="type">size_t</span> i = <span class="num">0</span>; i &lt; command.<span class="fn">size</span>() - <span class="num">1</span>; ++i)   <span class="com">// wraps to SIZE_MAX if size == 0</span></code></pre>
+  <p>If <code>command</code> is empty, <code>size() - 1</code> underflows to SIZE_MAX and the loop iterates forever (or until <code>command.at(i)</code> throws). Empty command shouldn't normally occur — <code>cmd_vel</code> is sized to <code>num_full_dof</code> in the ctor — but if any code path zeroes the vector or default-constructs a temporary, this hangs the control loop.</p>
+  <p><strong>Fix:</strong> <code>if (command.empty()) return;</code> guard at function entry.</p>
+</details>
+
+<details id="V-10">
+  <summary><span class="pill high">High</span> &nbsp;V-10: Pinocchio URDF parse throws unhandled</summary>
+  <p><strong>File:</strong> <code>Gen3Robot.cpp:270</code></p>
+  <pre><code>pinocchio::urdf::<span class="fn">buildModel</span>(mURDFFile, model);   <span class="com">// throws on missing/bad file</span></code></pre>
+  <p>If <code>mURDFFile</code> path is empty, unreadable, or malformed, <code>buildModel</code> throws. The ctor doesn't catch it; <code>main</code> doesn't either — the exception propagates out of <code>main</code>, terminating the process via <code>std::terminate</code> → SIGABRT. The crash log may not mention Pinocchio at all (depends on glibc backtrace verbosity).</p>
+  <p><strong>Fix:</strong> wrap in <code>try/catch</code>; log a clear "URDF parse failed at &lt;path&gt;: &lt;reason&gt;" and re-throw.</p>
+</details>
+
+<details id="V-11">
+  <summary><span class="pill low">Low</span> &nbsp;V-11: busy-wait in <code>sendCurrentCommand</code></summary>
+  <p><strong>File:</strong> <code>Gen3Robot.cpp:837–840</code></p>
+  <pre><code><span class="kw">while</span> (now - last &lt; <span class="num">1000</span>) {
+  now = <span class="fn">GetTickUs</span>();
+}</code></pre>
+  <p>Spins the main thread for up to ~1 ms with no <code>std::this_thread::yield()</code> or sleep. On a SCHED_FIFO RT thread on a dedicated core this is intentional (no risk of preemption). On a regular thread under load, this pegs the CPU. The comment above admits the design is a workaround for "ROS rate inaccuracy"; better fixed via <code>nanosleep</code> with a slack budget.</p>
+</details>
+
+<details id="V-12">
+  <summary><span class="pill low">Low</span> &nbsp;V-12: <code>controlRate.sleep()</code> return value ignored</summary>
+  <p><strong>File:</strong> <code>main.cpp:36</code></p>
+  <p><code>ros::Rate::sleep()</code> returns <code>false</code> if the loop is over budget (the previous iteration took longer than the period). Ignoring this means the controller cadence silently degrades from 1100 Hz when the system is loaded — no warning, no metric. For a 1 kHz cyclic loop with hard real-time semantics, this is the kind of degradation you want to know about.</p>
+</details>
+
+<details id="V-13">
+  <summary><span class="pill med">Med</span> &nbsp;V-13: race between soft-stop callback and ctor/dtor</summary>
+  <p><strong>File:</strong> <code>main.cpp:15–21</code>, <code>Gen3Robot.cpp:322–329</code></p>
+  <p>The constructor attaches the subscribers near its end (line 322). But subscribers can <em>fire as soon as they're attached</em> — even before the constructor returns. If the spinner thread is already running (it isn't here — <code>spinner.start()</code> comes after <code>Gen3Robot</code> construction in main.cpp), or if the spinner starts before the ctor finishes its remaining work, an E-Stop callback could fire on a half-constructed object.</p>
+  <p>In current main.cpp ordering, the subscribers are attached <em>before</em> spinner start, so they queue silently until <code>spinner.start()</code>. That's safe today. But if anyone reorders or moves the subscriber attach earlier in the ctor, this assumption breaks.</p>
+  <p>More acute: in the destructor (~line 396), <code>mBase</code> is deleted at line 434. If a soft-stop subscriber callback fires <em>during destruction</em>, after the underlying ROS spinner has been torn down by global ros::shutdown but before the local <code>Gen3Robot</code> destructor completes, the callback could dereference dangling <code>mBase</code>. <code>ros::AsyncSpinner</code>'s destructor joins its thread, so this is bounded — but the subscribers are member objects, destroyed before <code>mBase</code>, which means their internal callback queue is drained first. In practice safe; in principle a fragile ordering.</p>
+  <p><strong>Fix:</strong> explicitly <code>m_estop_sub.shutdown()</code> at the top of the destructor before any <code>mBase</code> teardown. Eliminates the ordering subtlety.</p>
+</details>
+
+<details id="V-14">
+  <summary><span class="pill low">Low</span> &nbsp;V-14: <code>std::cout</code> instead of <code>ROS_*</code> macros</summary>
+  <p>Many error paths use <code>std::cout</code> or <code>std::cerr</code> (e.g. lines 517, 547, 624, 792, 879, 918). These bypass ROS log routing (rosout, file logging, log_level filtering) and can interleave between the spinner thread and main thread because <code>std::cout</code> isn't synchronized at byte-level by default. Garbled log lines under contention.</p>
+  <p><strong>Fix:</strong> replace with <code>ROS_ERROR</code> / <code>ROS_INFO</code>. ROS's macros are thread-safe.</p>
+</details>
+
+<details id="V-15">
+  <summary><span class="pill med">Med</span> &nbsp;V-15: first-feedback failure leaves <code>mLastFeedback</code> default-constructed</summary>
+  <p><strong>File:</strong> <code>Gen3Robot.cpp:1011–1018</code></p>
+  <pre><code><span class="kw">if</span> (!mFirstFeedbackReceived || mUseAdmittance) {
+  mLastFeedback = mBaseCyclic-&gt;<span class="fn">RefreshFeedback</span>();
+  mFirstFeedbackReceived = <span class="kw">true</span>;                  <span class="com">// set even if Refresh throws... wait, no.</span>
+}</code></pre>
+  <p>If <code>RefreshFeedback()</code> throws (network blip, firmware in fault), the assignment to <code>mLastFeedback</code> doesn't happen and <code>mFirstFeedbackReceived</code> is never set true. Subsequent calls to <code>read()</code> would re-attempt. Until one succeeds, <code>mLastFeedback.actuators(i).position()</code> reads from a default-constructed protobuf — usually a zero-size repeated field. Accessing <code>actuators(0)</code> on an empty repeated field is UB in protobuf-lite (debug builds assert, release builds return garbage).</p>
+  <p><strong>Fix:</strong> guard <code>read()</code> on <code>mFirstFeedbackReceived</code> or on <code>mLastFeedback.actuators_size() &gt;= num_arm_dof</code>; return early if not yet populated.</p>
+</details>
+
+<h3>Soft-stop-specific risks (the new code)</h3>
+
+<details>
+  <summary>Already-mitigated issues — for completeness</summary>
+  <ul class="compact">
+    <li><strong>Latch-without-firmware-call:</strong> mitigated by latching <em>before</em> the RPC, so a preempted callback still leaves the system in fail-safe state.</li>
+    <li><strong>Late subscriber:</strong> the soft-stop bridge publishes with <code>latch=True</code>, so a Gen3Robot starting after a stuck E-Stop receives the latched message on subscribe and immediately faults.</li>
+    <li><strong>Concurrent ApplyEmergencyStop calls:</strong> idempotent at the firmware level — multiple calls land in the same fault state.</li>
+    <li><strong>Spurious clear_faults:</strong> calling <code>ClearFaults</code> on a non-faulted arm is a documented no-op.</li>
+  </ul>
+</details>
+
+<details>
+  <summary>Residual risks — worth knowing</summary>
+  <ul class="compact">
+    <li>Per-actuator <code>SetControlMode</code> not re-applied (V-6) — silent failure mode.</li>
+    <li><code>mBase</code> thread-safety is documentation-only — wrap in <code>std::mutex</code> if paranoid.</li>
+    <li>Resume jerk: controllers keep advancing their internal trajectory clock during the fault, then on resume the first cyclic frame may be far from current pose. Mitigated by the separate <code>controller_estop_handler.py</code>.</li>
+  </ul>
+</details>
+
+<hr>
+
+<h3>Recommended fix order</h3>
+<ol>
+  <li><strong>V-1</strong> (uninit <code>mActuatorCount</code>) — one-character fix, eliminates a real crash mode.</li>
+  <li><strong>V-3</strong> (uninit <code>use_admittance</code>) — one-character fix, eliminates UB on the safety-critical gate.</li>
+  <li><strong>V-2</strong> (silent partial init) — change <code>return</code> to <code>throw</code> so failures are loud.</li>
+  <li><strong>V-10</strong> (URDF parse) — wrap in try/catch with a useful error message.</li>
+  <li><strong>V-15</strong> (first-feedback) — guard <code>read()</code>.</li>
+  <li><strong>V-6</strong> (per-actuator mode restore) — copy the existing recovery dance.</li>
+  <li><strong>V-7</strong> (position-mode action-spam) — replace with BaseCyclic position frames. Larger refactor.</li>
+  <li><strong>V-8</strong> (no return + arm_mode race) — make atomic + add return.</li>
+  <li>Everything else — cleanup, not crash mitigation.</li>
+</ol>
+
+</section>
+
+</main>
+
+<script>
+  document.querySelectorAll("nav.tabs .tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+  });
+  document.querySelectorAll("a[data-tab]").forEach(a => {
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      const hash = a.getAttribute("href");
+      switchTab(a.dataset.tab);
+      if (hash && hash.startsWith("#") && hash.length > 1) {
+        setTimeout(() => {
+          const el = document.querySelector(hash);
+          if (el) {
+            el.scrollIntoView({behavior: "smooth", block: "start"});
+            if (el.tagName === "DETAILS") el.open = true;
+          }
+        }, 50);
+      }
+    });
+  });
+  function switchTab(name) {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === name));
+  }
+</script>
+
+</body>
+</html>
