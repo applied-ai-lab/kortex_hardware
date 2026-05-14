@@ -51,6 +51,7 @@ catkin_package(
     controller_manager
     hardware_interface
     sensor_msgs
+    message_runtime
 )
 ##################
 ## Clang-format ##
@@ -91,6 +92,7 @@ include_directories(
 )
 
 add_executable(kortex_hardware src/main.cpp src/Gen3Robot.cpp src/LowPassFilter.cpp)
+add_dependencies(kortex_hardware ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 set(KINOVA_ARM_LIBS ${catkin_LIBRARIES})
 set(KINOVA_ARM_LIBS

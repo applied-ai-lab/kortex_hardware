@@ -11,18 +11,31 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
+  <!-- Catkin components found in CMakeLists.txt: controller_manager,
+       hardware_interface, message_generation, roscpp, sensor_msgs,
+       std_msgs.  Plus find_package(Eigen3 REQUIRED), find_package(
+       pinocchio REQUIRED), find_package(Boost ...).  All declared
+       here as the full triple so rosdep installs everything needed
+       at runtime AND build time. -->
   <build_depend>pinocchio</build_depend>
   <build_depend>std_msgs</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>controller_manager</build_depend>
   <build_depend>hardware_interface</build_depend>
   <build_depend>sensor_msgs</build_depend>
+  <build_depend>message_generation</build_depend>
+  <build_depend>eigen</build_depend>
+  <build_depend>boost</build_depend>
 
+  <exec_depend>pinocchio</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>roscpp</exec_depend>
   <exec_depend>controller_manager</exec_depend>
   <exec_depend>hardware_interface</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>message_runtime</exec_depend>
+  <exec_depend>eigen</exec_depend>
+  <exec_depend>boost</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
