@@ -17,13 +17,8 @@
 #include <ros/console.h>
 #include <ros/package.h>
 #include <ros/ros.h>
-#include <std_msgs/Empty.h>
 
 #include "kortex_hardware/ModeService.h"
-
-// c++ (soft-stop + diagnostics)
-#include <atomic>
-#include <cstdint>
 
 // kinova api
 #include <client/RouterClient.h>
@@ -85,14 +80,6 @@ public:
 
   void write(void);
   void read(void);
-
-  // Soft-stop integration (see oxf20_soft_stop).  When true, the
-  // 1100 Hz control loop in main.cpp SHOULD skip robot.write() — the
-  // firmware has already faulted the arm via ApplyEmergencyStop, and
-  // continuing to push cyclic frames just produces error spam.
-  // Atomic so the spinner-thread callbacks and the main thread can
-  // read/write without an explicit mutex.
-  bool estopLatched() const { return m_estop_latched.load(std::memory_order_acquire); }
 
 private:
   std::string m_username;
@@ -189,51 +176,6 @@ private:
   pinocchio::Data data;
   std::string mURDFFile;
   std::string mPrefix;
-
-  // ---- Soft-stop bridge ------------------------------------------------
-  // Subscribers on the per-arm namespace's /in/* topics, fed by
-  // oxf20_soft_stop relays.  All callbacks fire on the AsyncSpinner
-  // thread; mBase RPCs from there are safe because the Kortex
-  // BaseClient is documented thread-safe for concurrent RPCs and the
-  // 1100 Hz write path uses mBaseCyclic (a separate UDP client).
-  ros::Subscriber m_estop_sub;
-  ros::Subscriber m_clear_faults_sub;
-  ros::Subscriber m_stop_sub;
-  std::atomic<bool> m_estop_latched{false};
-
-  void estopCallback(const std_msgs::Empty::ConstPtr& msg);
-  void clearFaultsCallback(const std_msgs::Empty::ConstPtr& msg);
-  void stopCallback(const std_msgs::Empty::ConstPtr& msg);
-
-  // ---- Layer 1 NaN diagnostics ----------------------------------------
-  // Counters incremented from the main thread whenever a non-finite
-  // value is detected and zeroed at one of the four guard points:
-  //   * `m_nan_cmd_count`     — `command[i]` non-finite right before
-  //                             `set_torque_joint` / `set_current_motor`
-  //   * `m_nan_lpf_in_count`  — `in_lpf` (effort-feedback filter)
-  //                             produced a non-finite output and was
-  //                             reset via the sticky-NaN trap-break
-  //   * `m_nan_lpf_out_count` — `out_lpf` (current-mode command filter)
-  //                             same as above
-  //   * `m_nan_gravity_count` — Pinocchio threw OR the gravity vector
-  //                             contained non-finite entries
-  //   * `m_nan_last_joint`    — joint index of the most recent
-  //                             command-side guard hit
-  //
-  // Published at 1 Hz on `~diagnostics/nan_counts` as
-  // `std_msgs/UInt64MultiArray` with layout
-  //   [nan_cmd, nan_lpf_in, nan_lpf_out, nan_gravity, last_joint].
-  // Cheap (atomic-add) so safe to read every cycle; doesn't reset on
-  // publish — operator subtracts to find rate.
-  std::atomic<std::uint64_t> m_nan_cmd_count{0};
-  std::atomic<std::uint64_t> m_nan_lpf_in_count{0};
-  std::atomic<std::uint64_t> m_nan_lpf_out_count{0};
-  std::atomic<std::uint64_t> m_nan_gravity_count{0};
-  std::atomic<int>           m_nan_last_joint{-1};
-
-  ros::Timer       m_diag_timer;
-  ros::Publisher   m_diag_pub;
-  void diagnosticsTimerCallback(const ros::TimerEvent& evt);
 };
 
 #endif

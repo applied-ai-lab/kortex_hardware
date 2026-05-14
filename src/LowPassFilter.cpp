@@ -4,11 +4,7 @@
 #include <iostream>
 
 LowPassFilter::LowPassFilter(
-    double sampling_rate,
-    double cutoff_frequency,
-    int dof,
-    std::atomic<std::uint64_t>* nan_counter)
-  : nan_counter_(nan_counter)
+    double sampling_rate, double cutoff_frequency, int dof)
 {
   // Initialize alpha (filter coefficient) based on sampling rate and cutoff
   // frequency and set previous torque vector size to dof
@@ -28,27 +24,10 @@ void LowPassFilter::initLPF(std::vector<double>& init_tau_J)
 std::vector<double> LowPassFilter::getFilteredEffort(
     std::vector<double>& tau_J_raw)
 {
-  for (std::size_t i = 0; i < filtered_tau_J.size(); i++)
+  // Filter the torque sensor data
+  for (int i = 0; i < filtered_tau_J.size(); i++)
   {
-    filtered_tau_J[i] =
-        tau_J_prev[i] * alpha_ + tau_J_raw[i] * (1.0 - alpha_);
-
-    // NaN-trap recovery.  Historically `tau_J_prev[i]` could latch
-    // non-finite — any one bad input contaminated every subsequent
-    // sample and only a process restart cleared it.  Force the
-    // stored previous value back to a finite number on every cycle:
-    //   * feed-through `tau_J_raw[i]` if it's finite (the new
-    //     measurement is good — believe it, just skip the filter
-    //     this sample)
-    //   * else fall back to zero (both sides are non-finite — at
-    //     least produce something the downstream consumer can use)
-    if (!std::isfinite(filtered_tau_J[i]))
-    {
-      filtered_tau_J[i] = std::isfinite(tau_J_raw[i]) ? tau_J_raw[i] : 0.0;
-      if (nan_counter_ != nullptr)
-        nan_counter_->fetch_add(1, std::memory_order_relaxed);
-    }
-
+    filtered_tau_J[i] = tau_J_prev[i] * alpha_ + tau_J_raw[i] * (1 - alpha_);
     tau_J_prev[i] = filtered_tau_J[i];
   }
   return filtered_tau_J;
