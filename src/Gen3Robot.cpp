@@ -875,8 +875,42 @@ void Gen3Robot::switchToEffortMode()
   mLowLevelServoing = true;
   setBaseCommand();
 
+  // Pre-load gravity-compensated torque (or current) into mBaseCommand
+  // BEFORE the SetControlMode loop below.  Without this pre-load, the
+  // buffered cyclic frame's `torque_joint` field is 0 (the default
+  // from setBaseCommand which only sets position).  As each actuator
+  // is then transitioned from POSITION to TORQUE mode by the
+  // SetControlMode RPC sequence below (~30 ms × N actuators ≈ 200 ms
+  // total), it immediately starts using the 0 torque value from the
+  // buffered frame and the joint sags until the next main-loop
+  // iteration runs sendTorqueCommand.  By front-loading gravity comp
+  // here, each actuator applies the correct holding torque the
+  // instant it switches mode, eliminating the ~200 ms startup drop.
+  //
+  // `pos` is fresh because read() ran earlier in the same main-loop
+  // iteration that called write() → switchToEffortMode.
+  // `addGravityCompensation` already has the F2 guard against
+  // Pinocchio failure (zeroes gravity on throw / non-finite output).
+  std::vector<double> startup_gravity_cmd(num_full_dof, 0.0);
+  addGravityCompensation(model, data, pos, startup_gravity_cmd);
+  for (unsigned int i = 0; i < mActuatorCount; ++i)
+  {
+    if (current_control)
+    {
+      double c = startup_gravity_cmd[i] / gear_ratio[i];
+      if (!std::isfinite(c)) c = 0.0;
+      mBaseCommand.mutable_actuators(i)->set_current_motor(c);
+    }
+    else
+    {
+      double t = startup_gravity_cmd[i];
+      if (!std::isfinite(t)) t = 0.0;
+      mBaseCommand.mutable_actuators(i)->set_torque_joint(t);
+    }
+  }
+
   // Taken from Kinova API
-  // Send a first frame
+  // Send a first frame — now carrying gravity-comp torques/currents.
   mLastFeedback = mBaseCyclic->Refresh(mBaseCommand);
 
   // Taken from Kinova API
