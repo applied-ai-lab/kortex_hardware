@@ -843,15 +843,39 @@ void Gen3Robot::sendGripperLowLevelCommand(const float& command)
 
 void Gen3Robot::write(void)
 {
-  // Emergency stop: hard-stop the drives via the Kortex API and command
-  // nothing further. Bypasses the effort/gravity-comp transition (which
-  // segfaults here and would anyway depend on gravity comp to hold the arm).
+  // Emergency stop: freeze the arm in place by switching every actuator to
+  // POSITION control mode (holds its current angle, no gravity comp needed)
+  // and dropping to single-level servoing, then command nothing further.
+  // Avoids the effort/gravity-comp transition (which segfaulted) and
+  // ApplyEmergencyStop (which de-energises -> arm drops, sticky recovery).
   if (arm_mode == hardware_interface::JointCommandModes::EMERGENCY_STOP)
   {
     if (last_arm_mode != hardware_interface::JointCommandModes::EMERGENCY_STOP)
     {
-      try { mBase->ApplyEmergencyStop(); }
-      catch (...) { ROS_ERROR("E-STOP: ApplyEmergencyStop() threw"); }
+      try
+      {
+        mControlModeMessage.set_control_mode(
+            k_api::ActuatorConfig::ControlMode::POSITION);
+        for (int idx = 0; idx < mActuatorCount; idx++)
+          mActuatorConfig->SetControlMode(mControlModeMessage, idx + 1);
+        mServoingMode.set_servoing_mode(
+            k_api::Base::ServoingMode::SINGLE_LEVEL_SERVOING);
+        mBase->SetServoingMode(mServoingMode);
+        mLowLevelServoing = false;
+      }
+      catch (k_api::KDetailedException& ex)
+      {
+        ROS_ERROR_STREAM(
+            "E-STOP: position-hold Kortex error: "
+            << ex.what() << " (sub-code: "
+            << k_api::SubErrorCodes_Name(k_api::SubErrorCodes(
+                   ex.getErrorInfo().getError().error_sub_code()))
+            << ")");
+      }
+      catch (std::exception& ex)
+      {
+        ROS_ERROR_STREAM("E-STOP: position-hold failed: " << ex.what());
+      }
       last_arm_mode = arm_mode;
     }
     return;
