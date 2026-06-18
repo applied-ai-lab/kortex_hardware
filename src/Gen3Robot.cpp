@@ -843,6 +843,20 @@ void Gen3Robot::sendGripperLowLevelCommand(const float& command)
 
 void Gen3Robot::write(void)
 {
+  // Emergency stop: hard-stop the drives via the Kortex API and command
+  // nothing further. Bypasses the effort/gravity-comp transition (which
+  // segfaults here and would anyway depend on gravity comp to hold the arm).
+  if (arm_mode == hardware_interface::JointCommandModes::EMERGENCY_STOP)
+  {
+    if (last_arm_mode != hardware_interface::JointCommandModes::EMERGENCY_STOP)
+    {
+      try { mBase->ApplyEmergencyStop(); }
+      catch (...) { ROS_ERROR("E-STOP: ApplyEmergencyStop() threw"); }
+      last_arm_mode = arm_mode;
+    }
+    return;
+  }
+
   // Ensures safe switching between modes and servoing levels
   if (last_arm_mode != arm_mode)
   {
