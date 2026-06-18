@@ -661,6 +661,19 @@ void Gen3Robot::switchToEffortMode()
   // Send a first frame
   mLastFeedback = mBaseCyclic->Refresh(mBaseCommand);
 
+  // Bumpless transition: seed the cyclic command with the measured
+  // torque/current before flipping control mode, otherwise the actuators latch
+  // onto a zero-effort command and the arm drops until the control loop's first
+  // gravity-compensated command arrives ~200 ms later.
+  for (int idx = 0; idx < mActuatorCount; idx++)
+  {
+    mBaseCommand.mutable_actuators(idx)->set_torque_joint(
+        mLastFeedback.actuators(idx).torque());
+    mBaseCommand.mutable_actuators(idx)->set_current_motor(
+        mLastFeedback.actuators(idx).current_motor());
+  }
+  mLastFeedback = mBaseCyclic->Refresh(mBaseCommand);
+
   // Taken from Kinova API
   // Set all actuators to torque mode now that the command is equal to measure
   if (current_control)
