@@ -862,6 +862,7 @@ void Gen3Robot::write(void)
             k_api::Base::ServoingMode::SINGLE_LEVEL_SERVOING);
         mBase->SetServoingMode(mServoingMode);
         mLowLevelServoing = false;
+        ROS_WARN("E-STOP applied: arm held in position");
       }
       catch (k_api::KDetailedException& ex)
       {
