@@ -398,6 +398,7 @@ bool Gen3Robot::setControlMode(
     ROS_ERROR("Invalid control mode");
     resp.success = false;
   }
+  return resp.success;
 }
 
 void Gen3Robot::initializeSoftLimits()

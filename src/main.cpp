@@ -28,7 +28,8 @@ int main(int argc, char* argv[])
     cm.update(robot.get_time(), robot.get_period());
 
     if (!use_admittance)
-      robot.write();
+      try { robot.write(); }
+      catch (std::exception& e) { ROS_ERROR_STREAM_THROTTLE(1.0, "write: " << e.what()); }
     controlRate.sleep();
   }
 
