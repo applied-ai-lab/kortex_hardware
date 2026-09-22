@@ -207,8 +207,7 @@ Gen3Robot::Gen3Robot(ros::NodeHandle nh)
   hardware_interface::JointModeHandle gripper_mode_handle(
       "gripper_mode", &gripper_mode);
   jm_interface.registerHandle(arm_mode_handle);
-  if (mUseGripper)
-    jm_interface.registerHandle(gripper_mode_handle);
+  if (mUseGripper) {jm_interface.registerHandle(gripper_mode_handle);}
 
   registerInterface(&jm_interface);
 
