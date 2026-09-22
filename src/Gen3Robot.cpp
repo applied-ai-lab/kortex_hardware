@@ -398,6 +398,7 @@ bool Gen3Robot::setControlMode(
     ROS_ERROR("Invalid control mode");
     resp.success = false;
   }
+  return resp.success;
 }
 
 void Gen3Robot::initializeSoftLimits()
@@ -661,6 +662,17 @@ void Gen3Robot::switchToEffortMode()
   // Send a first frame
   mLastFeedback = mBaseCyclic->Refresh(mBaseCommand);
 
+
+  // Bumpless transition: seed the cyclic command with the emasured torque/current before flipping control mode. 
+  for (int idx =0; idx < mActuatorCount; idx++)
+  {
+	  mBaseCommand.mutable_actuators(idx)->set_torque_joint(
+			  mLastFeedback.actuators(idx).torque());
+	  mBaseCommand.mutable_actuators(idx)->set_current_motor(
+			  mLastFeedback.actuators(idx).current_motor());
+  }
+  mLastFeedback = mBaseCyclic->Refresh(mBaseCommand);
+
   // Taken from Kinova API
   // Set all actuators to torque mode now that the command is equal to measure
   if (current_control)
@@ -829,6 +841,41 @@ void Gen3Robot::sendGripperLowLevelCommand(const float& command)
 
 void Gen3Robot::write(void)
 {
+
+  // Emergency Stop
+  if (arm_mode == hardware_interface::JointCommandModes::EMERGENCY_STOP)
+  {
+	  if (last_arm_mode != hardware_interface::JointCommandModes::EMERGENCY_STOP) {
+		  try
+		  {
+			  mControlModeMessage.set_control_mode(
+					  k_api::ActuatorConfig::ControlMode::POSITION);
+			  for (int idx = 0; idx < mActuatorCount; idx++)
+				  mActuatorConfig->SetControlMode(mControlModeMessage, idx+1);
+			  mServoingMode.set_servoing_mode(
+					  k_api::Base::ServoingMode::SINGLE_LEVEL_SERVOING);
+			  mBase->SetServoingMode(mServoingMode);
+			  mLowLevelServoing = false;
+			  ROS_WARN("E-Stop applied: Arm help in position");
+		  }
+		  catch (k_api::KDetailedException& ex)
+		  {
+			  ROS_ERROR_STREAM(
+					  "E-STOP: position hold Kortex Error: "
+					  << ex.what() << " (sub-code "
+					  << k_api::SubErrorCodes_Name(k_api::SubErrorCodes(
+							  ex.getErrorInfo().getError().error_sub_code()))
+					  <<")");
+		  }
+		  catch (std::exception& ex)
+		  {
+			  ROS_ERROR_STREAM("E-STOP: Position hold failed: " << ex.what());
+		  }
+		  last_arm_mode = arm_mode;
+	  }
+	  return;
+  }
+
   // Ensures safe switching between modes and servoing levels
   if (last_arm_mode != arm_mode)
   {
