@@ -87,7 +87,9 @@ Gen3Robot::Gen3Robot(ros::NodeHandle nh)
   ros::param::get("~prefix", mPrefix);
 
   ROS_INFO("Starting to initialize kortex_hardware");
+  num_finger_dof = mUseGripper ? 1 : 0;
   num_full_dof = num_arm_dof + num_finger_dof;
+  gripper_index = num_arm_dof;
   // From kortex_driver/src/non-generated/kortex_arm_driver.cpp
   m_tcp_transport = new k_api::TransportClientTcp();
   m_udp_transport = new k_api::TransportClientUdp();
@@ -167,27 +169,30 @@ Gen3Robot::Gen3Robot(ros::NodeHandle nh)
       "set_control_mode", &Gen3Robot::setControlMode, this);
 
   // connect and register the joint state interface for gripper
-  hardware_interface::JointStateHandle grp_state_handle(
-      mPrefix +"finger_joint",
-      &pos[num_full_dof - 1],
-      &vel[num_full_dof - 1],
-      &eff[num_full_dof - 1]);
-  jnt_state_interface.registerHandle(grp_state_handle);
+  if (mUseGripper)
+  {
+    hardware_interface::JointStateHandle grp_state_handle(
+        mPrefix +"finger_joint",
+        &pos[gripper_index],
+        &vel[gripper_index],
+        &eff[gripper_index]);
+    jnt_state_interface.registerHandle(grp_state_handle);
 
-  hardware_interface::JointHandle grp_vel_handle(
-      jnt_state_interface.getHandle(mPrefix + "finger_joint"),
-      &cmd_vel[num_full_dof - 1]);
-  jnt_vel_interface.registerHandle(grp_vel_handle);
+    hardware_interface::JointHandle grp_vel_handle(
+        jnt_state_interface.getHandle(mPrefix + "finger_joint"),
+        &cmd_vel[gripper_index]);
+    jnt_vel_interface.registerHandle(grp_vel_handle);
 
-  hardware_interface::JointHandle grp_pos_handle(
-      jnt_state_interface.getHandle(mPrefix + "finger_joint"),
-      &cmd_pos[num_full_dof - 1]);
-  jnt_pos_interface.registerHandle(grp_pos_handle);
+    hardware_interface::JointHandle grp_pos_handle(
+        jnt_state_interface.getHandle(mPrefix + "finger_joint"),
+        &cmd_pos[gripper_index]);
+    jnt_pos_interface.registerHandle(grp_pos_handle);
 
-  hardware_interface::JointHandle grp_eff_handle(
-      jnt_state_interface.getHandle(mPrefix + "finger_joint"),
-      &cmd_eff[num_full_dof - 1]);
-  jnt_eff_interface.registerHandle(grp_eff_handle);
+    hardware_interface::JointHandle grp_eff_handle(
+        jnt_state_interface.getHandle(mPrefix + "finger_joint"),
+        &cmd_eff[gripper_index]);
+    jnt_eff_interface.registerHandle(grp_eff_handle);
+  }
 
   registerInterface(&jnt_state_interface);
   registerInterface(&jnt_vel_interface);
@@ -202,7 +207,7 @@ Gen3Robot::Gen3Robot(ros::NodeHandle nh)
   hardware_interface::JointModeHandle gripper_mode_handle(
       "gripper_mode", &gripper_mode);
   jm_interface.registerHandle(arm_mode_handle);
-  jm_interface.registerHandle(gripper_mode_handle);
+  if (mUseGripper) {jm_interface.registerHandle(gripper_mode_handle);}
 
   registerInterface(&jm_interface);
 
@@ -525,7 +530,7 @@ void Gen3Robot::sendVelocityCommand(const std::vector<double>& command)
 
   auto joint_speeds = action.mutable_send_joint_speeds();
 
-  for (std::size_t i = 0; i < command.size() - 1; ++i)
+  for (std::size_t i = 0; i < num_arm_dof; ++i)
   {
     auto joint_speed = joint_speeds->add_joint_speeds();
     joint_speed->set_joint_identifier(i);
@@ -622,14 +627,17 @@ void Gen3Robot::setBaseCommand()
   }
   mBaseCommand = base_command;
 
-  // Initialize gripper low level command pointer
-  gripper_low_level_cmd = mBaseCommand.mutable_interconnect()
-                              ->mutable_gripper_command()
-                              ->add_motor_cmd();
-  // Set position to current gripper position
-  gripper_low_level_cmd->set_position(pos[num_full_dof - 1] * 100);
-  gripper_low_level_cmd->set_velocity(0.0);
-  gripper_low_level_cmd->set_force(100.0);
+  if (mUseGripper)
+  {
+    // Initialize gripper low level command pointer
+    gripper_low_level_cmd = mBaseCommand.mutable_interconnect()
+                                ->mutable_gripper_command()
+                                ->add_motor_cmd();
+    // Set position to current gripper position
+    gripper_low_level_cmd->set_position(pos[gripper_index] * 100);
+    gripper_low_level_cmd->set_velocity(0.0);
+    gripper_low_level_cmd->set_force(100.0);
+  }
 }
 
 void Gen3Robot::switchToEffortMode()
@@ -820,7 +828,7 @@ void Gen3Robot::sendCurrentCommand(std::vector<double>& command)
 
 void Gen3Robot::sendGripperLowLevelCommand(const float& command)
 {
-  gripper_position_error = (command - pos[num_full_dof - 1]) * 100.0;
+  gripper_position_error = (command - pos[gripper_index]) * 100.0;
 
   if (fabs(gripper_position_error) < 1.5)
   {
@@ -928,20 +936,20 @@ void Gen3Robot::write(void)
       // low level servoing mode
       // TODO: Add support for input velocity and force limits
       // See: api_cpp/examples/01-gripper_low_level_command.cpp
-      sendGripperLowLevelCommand(cmd_pos[num_full_dof - 1]);
+      sendGripperLowLevelCommand(cmd_pos[gripper_index]);
     }
     else
     {
       switch (gripper_mode)
       {
         case hardware_interface::JointCommandModes::MODE_VELOCITY:
-          sendGripperVelocityCommand(cmd_vel[num_full_dof - 1]);
+          sendGripperVelocityCommand(cmd_vel[gripper_index]);
           break;
         case hardware_interface::JointCommandModes::MODE_POSITION:
-          sendGripperPositionCommand(cmd_pos[num_full_dof - 1]);
+          sendGripperPositionCommand(cmd_pos[gripper_index]);
           break;
         case hardware_interface::JointCommandModes::MODE_EFFORT:
-          sendGripperPositionCommand(cmd_pos[num_full_dof - 1]);
+          sendGripperPositionCommand(cmd_pos[gripper_index]);
           break;
         default:
           // Stop Gripper
@@ -1006,14 +1014,17 @@ void Gen3Robot::read(void)
 
   // Read finger state. Note: position and velocity are percentage values
   // (0-100). Effort is set as current consumed by gripper motor (mA).
-  pos[num_full_dof - 1]
-      = mLastFeedback.interconnect().gripper_feedback().motor()[0].position()
-        / 100.0;
-  vel[num_full_dof - 1]
-      = mLastFeedback.interconnect().gripper_feedback().motor()[0].velocity()
-        / 100.0;
-  eff[num_full_dof - 1] = mLastFeedback.interconnect()
-                              .gripper_feedback()
-                              .motor()[0]
-                              .current_motor();
+  if (mUseGripper)
+  {
+    pos[gripper_index]
+        = mLastFeedback.interconnect().gripper_feedback().motor()[0].position()
+          / 100.0;
+    vel[gripper_index]
+        = mLastFeedback.interconnect().gripper_feedback().motor()[0].velocity()
+          / 100.0;
+    eff[gripper_index] = mLastFeedback.interconnect()
+                             .gripper_feedback()
+                             .motor()[0]
+                             .current_motor();
+  }
 }

@@ -96,6 +96,7 @@ private:
   int num_full_dof;
   int num_arm_dof;
   int num_finger_dof = 1;
+  int gripper_index; // only valid if mUseGripper
 
   // input command vars
   vector<double> cmd_pos;
