@@ -662,7 +662,6 @@ void Gen3Robot::switchToEffortMode()
   // Send a first frame
   mLastFeedback = mBaseCyclic->Refresh(mBaseCommand);
 
-
   // Bumpless transition: seed the cyclic command with the emasured torque/current before flipping control mode. 
   for (int idx =0; idx < mActuatorCount; idx++)
   {
@@ -875,7 +874,6 @@ void Gen3Robot::write(void)
 	  }
 	  return;
   }
-
   // Ensures safe switching between modes and servoing levels
   if (last_arm_mode != arm_mode)
   {
